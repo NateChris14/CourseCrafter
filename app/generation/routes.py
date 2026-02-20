@@ -8,7 +8,7 @@ from app.auth.deps import get_current_user
 from app.db.models.user import User
 from app.db.models.roadmap import Roadmap
 from app.db.models.generation_run import GenerationRun
-from app.jobs.tasks import generate_roadmap_outline
+from app.jobs.tasks import queue_roadmap_generation
 
 router = APIRouter()
 
@@ -34,8 +34,9 @@ user: User = Depends(get_current_user)):
     db.add(run)
     db.commit()
 
-    task = generate_roadmap_outline.delay(str(run.id))
-    run.celery_task_id = task.id
+    # Queue task using simple Redis queue
+    task_id = queue_roadmap_generation(str(run.id))
+    run.celery_task_id = task_id  # Store task ID for compatibility
     db.commit()
 
     return RedirectResponse(url=f"/roadmaps/{rm.id}?run={run.id}",

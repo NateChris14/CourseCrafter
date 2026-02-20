@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Your roadmaps</h1>
+<p><a href="/roadmaps/new">Create new</a></p>
+
+<ul>
+  {% for r in roadmaps %}
+    <li><a href="/roadmaps/{{ r.id }}">{{ r.title }}</a> — {{ r.field }} ({{ r.level }})</li>
+  {% else %}
+    <li>No roadmaps yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

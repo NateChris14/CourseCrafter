@@ -35,7 +35,7 @@ services:
 
   worker:
     build: .
-    command: celery -A app.jobs.celery_app.celery_app worker -l info
+    command: python -m app.jobs.worker
     environment:
       DATABASE_URL: postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter
       REDIS_URL: redis://redis:6379/0

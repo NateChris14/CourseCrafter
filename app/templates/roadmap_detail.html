@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ roadmap.title }}</h1>
+<p><b>Field:</b> {{ roadmap.field }} | <b>Level:</b> {{ roadmap.level }} | <b>Weeks:</b> {{ roadmap.duration_weeks }}</p>
+
+<form method="post" action="/roadmaps/{{ roadmap.id }}/generate">
+  <button type="submit">Generate outline</button>
+</form>
+
+<div id="runBox" style="margin-top:16px; display:none;">
+  <p><b>Status:</b> <span id="status"></span></p>
+  <p><b>Progress:</b> <span id="progress"></span>%</p>
+  <p id="message"></p>
+  <pre id="result" style="white-space:pre-wrap;"></pre>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const runId = params.get("run");
+  const box = document.getElementById("runBox");
+  if (runId) {
+    box.style.display = "block";
+    async function poll() {
+      const res = await fetch(`/runs/${runId}`);
+      const data = await res.json();
+      document.getElementById("status").textContent = data.status;
+      document.getElementById("progress").textContent = data.progress ?? 0;
+      document.getElementById("message").textContent = data.message ?? "";
+      if (data.status === "succeeded") {
+        document.getElementById("result").textContent = data.result_json;
+        return;
+      }
+      if (data.status === "failed") {
+        document.getElementById("result").textContent = data.error || "Failed";
+        return;
+      }
+      setTimeout(poll, 1500);
+    }
+    poll();
+  }
+</script>
+{% endblock %}
