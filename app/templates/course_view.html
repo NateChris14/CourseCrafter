@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ course.title }}</h1>
+{% if course.description %}<p>{{ course.description }}</p>{% endif %}
+
+{% for m in modules %}
+  <section style="margin: 16px 0; padding: 12px; border: 1px solid #333; border-radius: 8px;">
+    <h2>Week {{ m.week }} — {{ m.title }}</h2>
+
+    {% if m.outcomes and m.outcomes|length > 0 %}
+      <h3>Outcomes</h3>
+      <ul>
+        {% for o in m.outcomes %}
+          <li>{{ o }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% if m.content_md %}
+      <h3>Lesson</h3>
+      <pre style="white-space:pre-wrap;">{{ m.content_md }}</pre>
+    {% else %}
+      <p><i>Lesson content not generated yet.</i></p>
+    {% endif %}
+  </section>
+{% endfor %}
+{% endblock %}

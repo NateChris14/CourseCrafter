@@ -12,39 +12,52 @@ from app.jobs.tasks import queue_roadmap_generation
 
 router = APIRouter()
 
-@router.post("/roadmaps/{roadmap_id}/generate")
-def start_generation(roadmap_id: uuid.UUID, request: Request, db: Session = Depends(get_db),
-user: User = Depends(get_current_user)):
-    
-    rm = db.query(Roadmap).filter(Roadmap.id == roadmap_id, Roadmap.user_id == 
-    user.id).first()
 
+@router.post("/roadmaps/{roadmap_id}/generate")
+def start_generation(
+    roadmap_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    rm = (
+        db.query(Roadmap)
+        .filter(Roadmap.id == roadmap_id, Roadmap.user_id == user.id)
+        .first()
+    )
     if not rm:
-        return RedirectResponse(url="/roadmaps?error=not_found",
-        status_code=303)
+        return RedirectResponse(url="/roadmaps?error=not_found", status_code=303)
 
     run = GenerationRun(
         user_id=user.id,
         roadmap_id=rm.id,
         status="queued",
         progress=0,
-        message="Queued"
+        message="Queued",
     )
-
     db.add(run)
-    db.commit()
+    db.flush()  # ensures run.id exists without committing yet
 
-    # Queue task using simple Redis queue
+    # Queue task using Redis queue
     task_id = queue_roadmap_generation(str(run.id))
-    run.celery_task_id = task_id  # Store task ID for compatibility
+    run.celery_task_id = task_id  # legacy field; rename later if you want
+
     db.commit()
 
-    return RedirectResponse(url=f"/roadmaps/{rm.id}?run={run.id}",
-    status_code=303)
+    return RedirectResponse(url=f"/roadmaps/{rm.id}?run={run.id}", status_code=303)
+
 
 @router.get("/runs/{run_id}")
-def get_run_status(run_id: uuid.UUID, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    run = db.query(GenerationRun).filter(GenerationRun.id == run_id, GenerationRun.user_id == user.id).first()
+def get_run_status(
+    run_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    run = (
+        db.query(GenerationRun)
+        .filter(GenerationRun.id == run_id, GenerationRun.user_id == user.id)
+        .first()
+    )
     if not run:
         return JSONResponse({"error": "not_found"}, status_code=404)
 
@@ -54,5 +67,6 @@ def get_run_status(run_id: uuid.UUID, db: Session = Depends(get_db), user: User 
         "progress": run.progress,
         "message": run.message,
         "error": run.error,
+        "course_id": str(run.course_id) if run.course_id else None,
         "result_json": run.result_json if run.status == "succeeded" else None,
     }

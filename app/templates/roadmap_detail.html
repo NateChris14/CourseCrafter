@@ -11,31 +11,105 @@
   <p><b>Status:</b> <span id="status"></span></p>
   <p><b>Progress:</b> <span id="progress"></span>%</p>
   <p id="message"></p>
-  <pre id="result" style="white-space:pre-wrap;"></pre>
+
+  <p id="actions" style="margin: 10px 0;"></p>
+
+  <!-- New: pretty outline renders here -->
+  <div id="outline"></div>
+
+  <!-- Optional: keep raw JSON for debugging -->
+  <details style="margin-top: 12px;">
+    <summary>Show raw JSON</summary>
+    <pre id="result" style="white-space:pre-wrap;"></pre>
+  </details>
 </div>
 
 <script>
   const params = new URLSearchParams(window.location.search);
   const runId = params.get("run");
   const box = document.getElementById("runBox");
+  const actions = document.getElementById("actions");
+  const outlineDiv = document.getElementById("outline");
+
+  function renderOutline(outline) {
+    // outline = { weeks: [{week, title, outcomes: []}, ...] }
+    outlineDiv.innerHTML = "";
+
+    const weeks = outline?.weeks || [];
+    if (!weeks.length) {
+      outlineDiv.innerHTML = "<p><i>No outline weeks found.</i></p>";
+      return;
+    }
+
+    weeks.sort((a, b) => (a.week ?? 0) - (b.week ?? 0));
+
+    for (const w of weeks) {
+      const section = document.createElement("section");
+      section.style.margin = "16px 0";
+      section.style.padding = "12px";
+      section.style.border = "1px solid #333";
+      section.style.borderRadius = "8px";
+
+      const h2 = document.createElement("h2");
+      h2.textContent = `Week ${w.week} — ${w.title}`;
+      section.appendChild(h2);
+
+      const ul = document.createElement("ul");
+      for (const o of (w.outcomes || [])) {
+        const li = document.createElement("li");
+        li.textContent = o;
+        ul.appendChild(li);
+      }
+      section.appendChild(ul);
+
+      outlineDiv.appendChild(section);
+    }
+  }
+
   if (runId) {
     box.style.display = "block";
+
     async function poll() {
       const res = await fetch(`/runs/${runId}`);
       const data = await res.json();
+
       document.getElementById("status").textContent = data.status;
       document.getElementById("progress").textContent = data.progress ?? 0;
       document.getElementById("message").textContent = data.message ?? "";
+
       if (data.status === "succeeded") {
-        document.getElementById("result").textContent = data.result_json;
+        actions.innerHTML = "";
+
+        if (data.course_id) {
+          const link = document.createElement("a");
+          link.href = `/courses/${data.course_id}`;
+          link.textContent = "View course";
+          actions.appendChild(link);
+        }
+
+        // Raw JSON (debug)
+        document.getElementById("result").textContent = data.result_json || "";
+
+        // Pretty render
+        try {
+          const outline = JSON.parse(data.result_json);
+          renderOutline(outline);
+        } catch (e) {
+          outlineDiv.innerHTML = "<p class='error'><i>Could not parse outline JSON.</i></p>";
+        }
         return;
       }
+
       if (data.status === "failed") {
+        outlineDiv.innerHTML = "";
         document.getElementById("result").textContent = data.error || "Failed";
+        actions.innerHTML = "";
         return;
       }
+
       setTimeout(poll, 1500);
     }
+
     poll();
   }
 </script>

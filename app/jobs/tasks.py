@@ -21,6 +21,9 @@ from app.settings import settings
 from app.db.models.generation_run import GenerationRun
 from app.db.models.roadmap import Roadmap
 from app.agents.workflow import generate_roadmap_outline
+from app.db.models.course import Course
+from app.db.models.course_module import CourseModule
+
 
 PENDING_Q = "roadmap_generation_queue"
 PROCESSING_Q = "roadmap_generation_processing"
@@ -128,10 +131,37 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         )
         outline = outline_obj.model_dump()
 
+        course = Course(
+            user_id=run.user_id,
+            roadmap_id=rm.id,
+            status="ready",
+            title=f"{rm.title} (AI-generated)",
+            description=f"{rm.duration_weeks}-week roadmap for {rm.field}, level {rm.level}.",
+            )
+        db.add(course)
+        db.flush()  # course.id available now
+
+        # Link the generation run to the created course (THIS is what enables the UI link)
+        run.course_id = course.id
+
+        # Create modules from outline
+        for w in outline["weeks"]:
+            m = CourseModule(
+                course_id=course.id,
+                week=int(w["week"]),
+                title=w["title"],
+                outcomes_json=json.dumps(w["outcomes"]),
+                content_md=None,  # next stage: ModuleWriter fills this
+            )
+            db.add(m)
+
+        # Save outline to the run too (optional but useful for debugging/UI)
         run.progress = 85
-        run.message = "Saving outline"
+        run.message = "Saving outline + course structure"
         run.result_json = json.dumps(outline)
+
         db.commit()
+
 
         run.status = "succeeded"
         run.progress = 100
