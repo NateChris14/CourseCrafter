@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · CourseCrafter{% endblock %}
+{% block content %}
+  <h1>Dashboard</h1>
+  <p>Logged in as <strong>{{ user.email }}</strong></p>
+
+  <p>Next: create a roadmap and generate a course.</p>
+  <a class="btn" href="/roadmaps/new">Create roadmap</a>
+{% endblock %}

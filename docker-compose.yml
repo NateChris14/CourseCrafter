@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: coursecrafter
+      POSTGRES_USER: coursecrafter
+      POSTGRES_PASSWORD: coursecrafter
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  web:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+    environment:
+      DATABASE_URL: postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter
+      REDIS_URL: redis://redis:6379/0
+      ENV: dev
+      SESSION_SECRET: change-me
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build: .
+    command: celery -A app.jobs.celery_app.celery_app worker -l info
+    environment:
+      DATABASE_URL: postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter
+      REDIS_URL: redis://redis:6379/0
+      ENV: dev
+      SESSION_SECRET: change-me
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  pgdata:
