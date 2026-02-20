@@ -13,4 +13,9 @@ class Settings(BaseSettings):
     session_absolute_days: int = 7
     session_idle_minutes: int = 60
 
+    # Ollama settings
+    ollama_base_url: str = "http://localhost:11434/v1"
+    ollama_model: str = "llama3.1"
+
+
 settings = Settings()

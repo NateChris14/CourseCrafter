@@ -25,6 +25,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENV: dev
       SESSION_SECRET: change-me
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      OLLAMA_MODEL: llama3.1
     ports:
       - "8080:8080"
     volumes:
@@ -41,6 +43,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENV: dev
       SESSION_SECRET: change-me
+      OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
+      OLLAMA_MODEL: llama3.1
+
     volumes:
       - .:/app
     depends_on:
