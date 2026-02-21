@@ -1,1 +1,47 @@
 body { font-family: system-ui, Arial, sans-serif; margin: 40px; }
+
+/* Rendered markdown inside course lessons */
+.lesson {
+  line-height: 1.6;
+}
+
+.lesson h1, .lesson h2, .lesson h3 {
+  margin: 12px 0 8px;
+}
+
+.lesson p {
+  margin: 8px 0;
+}
+
+.lesson ul, .lesson ol {
+  margin: 8px 0 8px 22px;
+}
+
+.lesson code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.95em;
+  background: #f2f2f2;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.lesson pre {
+  background: #111;
+  color: #eee;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.lesson pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.lesson blockquote {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 4px solid #bbb;
+  background: #f6f6f6;
+}

@@ -4,7 +4,7 @@ Redis-based (reliable) task queue for generation.
 
 Queue pattern:
 - Producer LPUSH -> PENDING_Q
-- Worker BRPOPLPUSH pending -> processing (atomic, reliable) [web:313]
+- Worker BRPOPLPUSH pending -> processing (atomic, reliable)
 - ACK via LREM on processing
 - Retry by moving back to pending with attempt increment
 """
@@ -22,7 +22,6 @@ from app.db.models.generation_run import GenerationRun
 from app.db.models.roadmap import Roadmap
 from app.db.models.course import Course
 from app.db.models.course_module import CourseModule
-
 from app.agents.workflow import generate_roadmap_outline
 from app.agents.module_writer import write_module_markdown
 
@@ -44,7 +43,7 @@ def enqueue_job(*, job_type: str, run_id: str, course_id: str | None = None) -> 
     task_id = str(uuid.uuid4())
     task_data = {
         "task_id": task_id,
-        "type": job_type,          # "generate_roadmap_outline" | "generate_course_modules"
+        "type": job_type,  # "generate_roadmap_outline" | "generate_course_modules"
         "run_id": run_id,
         "course_id": course_id,
         "attempt": 0,
@@ -105,17 +104,12 @@ def update_run(
 # Job handlers (worker)
 # -------------------------
 def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
-    """
-    Generates a validated RoadmapOutline via Ollama, creates Course + CourseModules,
-    and links GenerationRun.course_id.
-    """
     db = SessionLocal()
     try:
         run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
         if not run:
             return {"ok": False, "error": "run not found"}
 
-        # Idempotency guards
         if run.status in ("succeeded", "failed"):
             return {"ok": True, "skipped": True, "status": run.status}
         if run.status == "running":
@@ -139,10 +133,11 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         run.message = "Planning roadmap outline (LLM)"
         db.commit()
 
-        outline_obj = generate_roadmap_outline(rm.field, rm.level, rm.weekly_hours, rm.duration_weeks)
+        outline_obj = generate_roadmap_outline(
+            rm.field, rm.level, rm.weekly_hours, rm.duration_weeks
+        )
         outline = outline_obj.model_dump()
 
-        # Create Course + modules
         run.progress = 60
         run.message = "Creating course structure"
         db.commit()
@@ -155,7 +150,7 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
             description=f"{rm.duration_weeks}-week roadmap for {rm.field}, level {rm.level}.",
         )
         db.add(course)
-        db.flush()  # course.id now available
+        db.flush()
 
         run.course_id = course.id
 
@@ -175,12 +170,11 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         run.result_json = json.dumps(outline)
         db.commit()
 
-        # Mark success
         run.status = "succeeded"
         run.progress = 100
         run.message = "Done"
         run.finished_at = datetime.now(timezone.utc)
-        course.status = "ready"  # outline-ready course
+        course.status = "ready"
         db.commit()
 
         return {"ok": True, "course_id": str(course.id)}
@@ -198,9 +192,6 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
 
 
 def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
-    """
-    Fills CourseModule.content_md (Markdown) for each week using Ollama.
-    """
     db = SessionLocal()
     try:
         run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
@@ -231,15 +222,19 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
             update_run(run_id, status="failed", error="No modules found", finished=True)
             return {"ok": False, "error": "no modules found"}
 
-        # Link run -> course (useful for UI)
         run.course_id = course.id
         db.commit()
 
-        update_run(run_id, status="running", progress=5, message="Generating module content (Markdown)", started=True)
+        update_run(
+            run_id,
+            status="running",
+            progress=5,
+            message="Generating module content (Markdown)",
+            started=True,
+        )
 
         total = len(modules)
         for i, m in enumerate(modules, start=1):
-            # Idempotency: skip already generated modules
             if m.content_md and m.content_md.strip():
                 continue
 
@@ -264,7 +259,13 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
         course.status = "ready"
         db.commit()
 
-        update_run(run_id, status="succeeded", progress=100, message="Course content ready", finished=True)
+        update_run(
+            run_id,
+            status="succeeded",
+            progress=100,
+            message="Course content ready",
+            finished=True,
+        )
         return {"ok": True}
 
     except Exception as e:
@@ -287,13 +288,11 @@ def process_roadmap_generation_queue():
                 continue
 
             task = json.loads(task_raw)
-
             job_type = task.get("type", "generate_roadmap_outline")
             run_id = task.get("run_id")
             course_id = task.get("course_id")
 
             if not run_id:
-                # bad payload, ack to avoid poison-pill blocking the queue
                 redis_client.lrem(PROCESSING_Q, 1, task_raw)
                 continue
 
@@ -307,7 +306,6 @@ def process_roadmap_generation_queue():
             else:
                 update_run(run_id, status="failed", error=f"Unknown job type: {job_type}", finished=True)
 
-            # ACK only after successful processing path completes
             redis_client.lrem(PROCESSING_Q, 1, task_raw)
 
         except Exception as e:
@@ -316,7 +314,6 @@ def process_roadmap_generation_queue():
             if not task_raw:
                 continue
 
-            # If task is not valid JSON, drop it from processing to avoid poison pill blocking
             try:
                 task = json.loads(task_raw)
             except Exception:

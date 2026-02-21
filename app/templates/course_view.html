@@ -65,9 +65,11 @@
       </ul>
     {% endif %}
 
-    {% if m.content_md %}
+    {% if m.content_html %}
       <h3>Lesson</h3>
-      <pre style="white-space:pre-wrap;">{{ m.content_md }}</pre>
+      <div class="lesson">
+        {{ m.content_html }}
+      </div>
     {% else %}
       <p><i>Lesson content not generated yet.</i></p>
     {% endif %}

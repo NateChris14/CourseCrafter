@@ -7,6 +7,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from markdown_it import MarkdownIt
+from markupsafe import Markup
+
 from app.deps import get_db
 from app.auth.deps import get_current_user
 from app.db.models.user import User
@@ -41,14 +44,21 @@ def view_course(
         .all()
     )
 
+    md = MarkdownIt("js-default")  # disables raw HTML parsing vs commonmark [web:518]
+
     module_views = []
     for m in modules:
+        content_html = None
+        if m.content_md and m.content_md.strip():
+            content_html = Markup(md.render(m.content_md))  # mark as safe for Jinja [web:722]
+
         module_views.append(
             {
                 "week": m.week,
                 "title": m.title,
                 "outcomes": json.loads(m.outcomes_json),
                 "content_md": m.content_md,
+                "content_html": content_html,
             }
         )
 
@@ -80,7 +90,6 @@ def generate_course_modules(
     if not course:
         return RedirectResponse(url="/dashboard?error=course_not_found", status_code=303)
 
-    # New run for module-writing (clean separation from outline run)
     run = GenerationRun(
         user_id=user.id,
         roadmap_id=course.roadmap_id,
@@ -97,7 +106,8 @@ def generate_course_modules(
         run_id=str(run.id),
         course_id=str(course.id),
     )
-    run.celery_task_id = task_id  # legacy field; rename later
+    run.celery_task_id = task_id  # legacy field
     db.commit()
 
     return RedirectResponse(url=f"/courses/{course.id}?run={run.id}", status_code=303)
+
