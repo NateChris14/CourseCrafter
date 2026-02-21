@@ -1,10 +1,10 @@
 # app/jobs/tasks.py
 """
-Simple Redis-based (reliable) task queue for roadmap generation.
+Redis-based (reliable) task queue for generation.
 
 Queue pattern:
 - Producer LPUSH -> PENDING_Q
-- Worker BRPOPLPUSH pending -> processing (atomic, reliable)
+- Worker BRPOPLPUSH pending -> processing (atomic, reliable) [web:313]
 - ACK via LREM on processing
 - Retry by moving back to pending with attempt increment
 """
@@ -20,10 +20,11 @@ from sqlalchemy.orm import sessionmaker
 from app.settings import settings
 from app.db.models.generation_run import GenerationRun
 from app.db.models.roadmap import Roadmap
-from app.agents.workflow import generate_roadmap_outline
 from app.db.models.course import Course
 from app.db.models.course_module import CourseModule
 
+from app.agents.workflow import generate_roadmap_outline
+from app.agents.module_writer import write_module_markdown
 
 PENDING_Q = "roadmap_generation_queue"
 PROCESSING_Q = "roadmap_generation_processing"
@@ -35,12 +36,17 @@ engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def queue_roadmap_generation(run_id: str) -> str:
-    """Queue a roadmap generation task and return task_id."""
+# -------------------------
+# Queue API (producer)
+# -------------------------
+def enqueue_job(*, job_type: str, run_id: str, course_id: str | None = None) -> str:
+    """Enqueue a job into Redis and return task_id."""
     task_id = str(uuid.uuid4())
     task_data = {
         "task_id": task_id,
+        "type": job_type,          # "generate_roadmap_outline" | "generate_course_modules"
         "run_id": run_id,
+        "course_id": course_id,
         "attempt": 0,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -48,6 +54,14 @@ def queue_roadmap_generation(run_id: str) -> str:
     return task_id
 
 
+def queue_roadmap_generation(run_id: str) -> str:
+    """Backward compatible wrapper."""
+    return enqueue_job(job_type="generate_roadmap_outline", run_id=run_id)
+
+
+# -------------------------
+# DB helper
+# -------------------------
 def update_run(
     run_id: str,
     *,
@@ -87,10 +101,13 @@ def update_run(
         db.close()
 
 
+# -------------------------
+# Job handlers (worker)
+# -------------------------
 def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
     """
-    Runs inside worker process.
-    Generates a validated RoadmapOutline via Ollama and stores it in generation_runs.result_json.
+    Generates a validated RoadmapOutline via Ollama, creates Course + CourseModules,
+    and links GenerationRun.course_id.
     """
     db = SessionLocal()
     try:
@@ -106,7 +123,7 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
 
         run.status = "running"
         run.progress = 5
-        run.message = "Starting generation"
+        run.message = "Starting outline generation"
         run.started_at = datetime.now(timezone.utc)
         db.commit()
 
@@ -118,61 +135,57 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
             db.commit()
             return {"ok": False, "error": "roadmap not found"}
 
-        # Planner step (LLM)
         run.progress = 20
         run.message = "Planning roadmap outline (LLM)"
         db.commit()
 
-        outline_obj = generate_roadmap_outline(
-            rm.field,
-            rm.level,
-            rm.weekly_hours,
-            rm.duration_weeks,
-        )
+        outline_obj = generate_roadmap_outline(rm.field, rm.level, rm.weekly_hours, rm.duration_weeks)
         outline = outline_obj.model_dump()
+
+        # Create Course + modules
+        run.progress = 60
+        run.message = "Creating course structure"
+        db.commit()
 
         course = Course(
             user_id=run.user_id,
             roadmap_id=rm.id,
-            status="ready",
+            status="draft",
             title=f"{rm.title} (AI-generated)",
             description=f"{rm.duration_weeks}-week roadmap for {rm.field}, level {rm.level}.",
-            )
+        )
         db.add(course)
-        db.flush()  # course.id available now
+        db.flush()  # course.id now available
 
-        # Link the generation run to the created course (THIS is what enables the UI link)
         run.course_id = course.id
 
-        # Create modules from outline
         for w in outline["weeks"]:
-            m = CourseModule(
-                course_id=course.id,
-                week=int(w["week"]),
-                title=w["title"],
-                outcomes_json=json.dumps(w["outcomes"]),
-                content_md=None,  # next stage: ModuleWriter fills this
+            db.add(
+                CourseModule(
+                    course_id=course.id,
+                    week=int(w["week"]),
+                    title=w["title"],
+                    outcomes_json=json.dumps(w["outcomes"]),
+                    content_md=None,
+                )
             )
-            db.add(m)
 
-        # Save outline to the run too (optional but useful for debugging/UI)
         run.progress = 85
         run.message = "Saving outline + course structure"
         run.result_json = json.dumps(outline)
-
         db.commit()
 
-
+        # Mark success
         run.status = "succeeded"
         run.progress = 100
         run.message = "Done"
         run.finished_at = datetime.now(timezone.utc)
+        course.status = "ready"  # outline-ready course
         db.commit()
 
-        return {"ok": True}
+        return {"ok": True, "course_id": str(course.id)}
 
     except Exception as e:
-        # Mark failed
         run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
         if run:
             run.status = "failed"
@@ -184,6 +197,86 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         db.close()
 
 
+def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
+    """
+    Fills CourseModule.content_md (Markdown) for each week using Ollama.
+    """
+    db = SessionLocal()
+    try:
+        run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
+        if not run:
+            return {"ok": False, "error": "run not found"}
+
+        course = (
+            db.query(Course)
+            .filter(Course.id == course_id, Course.user_id == run.user_id)
+            .first()
+        )
+        if not course:
+            update_run(run_id, status="failed", error="course not found", finished=True)
+            return {"ok": False, "error": "course not found"}
+
+        rm = db.query(Roadmap).filter(Roadmap.id == course.roadmap_id).first()
+        if not rm:
+            update_run(run_id, status="failed", error="roadmap not found for course", finished=True)
+            return {"ok": False, "error": "roadmap not found"}
+
+        modules = (
+            db.query(CourseModule)
+            .filter(CourseModule.course_id == course.id)
+            .order_by(CourseModule.week.asc())
+            .all()
+        )
+        if not modules:
+            update_run(run_id, status="failed", error="No modules found", finished=True)
+            return {"ok": False, "error": "no modules found"}
+
+        # Link run -> course (useful for UI)
+        run.course_id = course.id
+        db.commit()
+
+        update_run(run_id, status="running", progress=5, message="Generating module content (Markdown)", started=True)
+
+        total = len(modules)
+        for i, m in enumerate(modules, start=1):
+            # Idempotency: skip already generated modules
+            if m.content_md and m.content_md.strip():
+                continue
+
+            outcomes = json.loads(m.outcomes_json)
+
+            update_run(
+                run_id,
+                progress=int(5 + (i - 1) * (90 / total)),
+                message=f"Writing week {m.week}/{total}: {m.title}",
+            )
+
+            md = write_module_markdown(
+                field=rm.field,
+                level=rm.level,
+                week=m.week,
+                title=m.title,
+                outcomes=outcomes,
+            )
+            m.content_md = md
+            db.commit()
+
+        course.status = "ready"
+        db.commit()
+
+        update_run(run_id, status="succeeded", progress=100, message="Course content ready", finished=True)
+        return {"ok": True}
+
+    except Exception as e:
+        update_run(run_id, status="failed", error=f"{type(e).__name__}: {e}", finished=True)
+        raise
+    finally:
+        db.close()
+
+
+# -------------------------
+# Worker loop (consumer)
+# -------------------------
 def process_roadmap_generation_queue():
     """Reliable queue consumer: pending -> processing -> ack with retries."""
     while True:
@@ -194,14 +287,27 @@ def process_roadmap_generation_queue():
                 continue
 
             task = json.loads(task_raw)
+
+            job_type = task.get("type", "generate_roadmap_outline")
             run_id = task.get("run_id")
+            course_id = task.get("course_id")
+
             if not run_id:
+                # bad payload, ack to avoid poison-pill blocking the queue
                 redis_client.lrem(PROCESSING_Q, 1, task_raw)
                 continue
 
-            generate_roadmap_outline_sync(run_id)
+            if job_type == "generate_roadmap_outline":
+                generate_roadmap_outline_sync(run_id)
+            elif job_type == "generate_course_modules":
+                if not course_id:
+                    update_run(run_id, status="failed", error="course_id missing in job payload", finished=True)
+                else:
+                    generate_course_modules_sync(run_id, course_id)
+            else:
+                update_run(run_id, status="failed", error=f"Unknown job type: {job_type}", finished=True)
 
-            # ACK only after successful processing
+            # ACK only after successful processing path completes
             redis_client.lrem(PROCESSING_Q, 1, task_raw)
 
         except Exception as e:

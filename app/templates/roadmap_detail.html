@@ -14,10 +14,8 @@
 
   <p id="actions" style="margin: 10px 0;"></p>
 
-  <!-- New: pretty outline renders here -->
   <div id="outline"></div>
 
-  <!-- Optional: keep raw JSON for debugging -->
   <details style="margin-top: 12px;">
     <summary>Show raw JSON</summary>
     <pre id="result" style="white-space:pre-wrap;"></pre>
@@ -32,9 +30,7 @@
   const outlineDiv = document.getElementById("outline");
 
   function renderOutline(outline) {
-    // outline = { weeks: [{week, title, outcomes: []}, ...] }
     outlineDiv.innerHTML = "";
-
     const weeks = outline?.weeks || [];
     if (!weeks.length) {
       outlineDiv.innerHTML = "<p><i>No outline weeks found.</i></p>";
@@ -87,10 +83,8 @@
           actions.appendChild(link);
         }
 
-        // Raw JSON (debug)
         document.getElementById("result").textContent = data.result_json || "";
 
-        // Pretty render
         try {
           const outline = JSON.parse(data.result_json);
           renderOutline(outline);

@@ -61,7 +61,7 @@ def get_run_status(
     if not run:
         return JSONResponse({"error": "not_found"}, status_code=404)
 
-    return {
+    return JSONResponse ({
         "id": str(run.id),
         "status": run.status,
         "progress": run.progress,
@@ -69,4 +69,4 @@ def get_run_status(
         "error": run.error,
         "course_id": str(run.course_id) if run.course_id else None,
         "result_json": run.result_json if run.status == "succeeded" else None,
-    }
+    })
