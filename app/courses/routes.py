@@ -136,3 +136,22 @@ def generate_course_modules(
 
     return RedirectResponse(url=f"/courses/{course.id}?run={run.id}", status_code=303)
 
+@router.post("/{course_id}/delete")
+def delete_course(
+    course_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    course = (
+        db.query(Course)
+        .filter(Course.id == course_id, Course.user_id == user.id)
+        .first()
+    )
+    if not course:
+        return RedirectResponse(url="/courses?error=course_not_found", 
+        status_code=303)
+
+    db.delete(course)
+    db.commit()
+
+    return RedirectResponse(url="/courses?deleted=1", status_code=303)
