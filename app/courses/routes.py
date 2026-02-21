@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 
 from markdown_it import MarkdownIt
 from markupsafe import Markup
@@ -20,6 +21,30 @@ from app.jobs.tasks import enqueue_job
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/courses")
+
+@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
+def list_courses(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+
+    courses = (
+        db.query(Course)
+        .filter(Course.user_id == user.id)
+        .order_by(desc(Course.updated_at)) # newest first
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "courses_list.html",
+        {
+            "request": request,
+            "user": user,
+            "courses": courses,
+        },
+    )
 
 
 @router.get("/{course_id}", response_class=HTMLResponse)

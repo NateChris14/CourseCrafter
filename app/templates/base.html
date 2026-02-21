@@ -10,6 +10,7 @@
       <a href="/" class="brand">CourseCrafter</a>
       <nav>
         {% if user %}
+          <a href="/courses">My Courses</a>
           <form method="post" action="/logout" style="display:inline;">
             <button type="submit">Logout</button>
           </form>

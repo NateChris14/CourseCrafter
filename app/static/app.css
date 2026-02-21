@@ -45,3 +45,6 @@ body { font-family: system-ui, Arial, sans-serif; margin: 40px; }
   border-left: 4px solid #bbb;
   background: #f6f6f6;
 }
+.topbar nav a { margin-right: 12px; }
+
+.topbar nav form { margin: 0; }

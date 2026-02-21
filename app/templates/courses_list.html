@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h1>My saved courses</h1>
+
+{% if courses|length == 0 %}
+  <p>You don’t have any saved courses yet.</p>
+  <p><a href="/dashboard">Go to dashboard</a></p>
+{% else %}
+  {% for c in courses %}
+    <section style="margin: 16px 0; padding: 12px; border: 1px solid #333; border-radius: 8px;">
+      <h2 style="margin: 0 0 6px 0;">
+        <a href="/courses/{{ c.id }}">{{ c.title }}</a>
+      </h2>
+      {% if c.description %}<div style="color:#666;">{{ c.description }}</div>{% endif %}
+      <div style="margin-top: 8px;">
+        Status: <b>{{ c.status }}</b>
+        &nbsp;|&nbsp;
+        <a href="/courses/{{ c.id }}">Open</a>
+        &nbsp;|&nbsp;
+        <form method="post" action="/courses/{{ c.id }}/generate" style="display:inline;">
+          <button type="submit">Generate content</button>
+        </form>
+      </div>
+    </section>
+  {% endfor %}
+{% endif %}
+
+{% endblock %}
