@@ -1,50 +1,490 @@
-body { font-family: system-ui, Arial, sans-serif; margin: 40px; }
+/* Educational Theme CSS with Background Patterns */
 
-/* Rendered markdown inside course lessons */
-.lesson {
+/* CSS Variables for Educational Color Palette */
+:root {
+  --primary-color: #2c3e50;
+  --secondary-color: #3498db;
+  --accent-color: #e74c3c;
+  --success-color: #27ae60;
+  --warning-color: #f39c12;
+  --light-bg: #ecf0f1;
+  --white: #ffffff;
+  --text-dark: #2c3e50;
+  --text-light: #7f8c8d;
+  --border-color: #bdc3c7;
+  --shadow: 0 2px 10px rgba(0,0,0,0.1);
+  --shadow-hover: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+/* Body with educational background pattern */
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--light-bg);
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(52, 152, 219, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(241, 196, 15, 0.1) 0%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 35px,
+      rgba(255,255,255,.1) 35px,
+      rgba(255,255,255,.1) 70px
+    );
+  min-height: 100vh;
+  color: var(--text-dark);
   line-height: 1.6;
 }
 
+/* Header/Navigation */
+.topbar {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #34495e 100%);
+  padding: 1rem 2rem;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--secondary-color), var(--accent-color), var(--success-color));
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--white);
+  text-decoration: none;
+  display: inline-block;
+  margin-right: 2rem;
+  transition: transform 0.3s ease;
+}
+
+.brand:hover {
+  transform: scale(1.05);
+  color: var(--white);
+}
+
+.topbar nav {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.topbar nav a {
+  color: var(--white);
+  text-decoration: none;
+  margin-right: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 25px;
+  transition: all 0.3s ease;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.topbar nav a:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.topbar nav form {
+  display: inline-block;
+  margin: 0;
+}
+
+.topbar nav button {
+  background: var(--accent-color);
+  color: var(--white);
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.topbar nav button:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Main Container */
+.container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: var(--white);
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(52, 152, 219, 0.03) 10px,
+    rgba(52, 152, 219, 0.03) 20px
+  );
+  pointer-events: none;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  font-weight: 600;
+  position: relative;
+}
+
+h1 {
+  font-size: 2.5rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 3px solid var(--secondary-color);
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+h2 {
+  font-size: 2rem;
+  color: var(--primary-color);
+  border-left: 5px solid var(--secondary-color);
+  padding-left: 1rem;
+  margin-top: 2rem;
+}
+
+h3 {
+  font-size: 1.5rem;
+  color: var(--primary-color);
+  margin-top: 1.5rem;
+}
+
+p {
+  margin-bottom: 1rem;
+  color: var(--text-dark);
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--secondary-color), #2980b9);
+  color: var(--white);
+  padding: 0.75rem 2rem;
+  text-decoration: none;
+  border-radius: 25px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+  background: linear-gradient(135deg, #2980b9, var(--secondary-color));
+}
+
+.btn:active {
+  transform: translateY(-1px);
+}
+
+/* Forms */
+form {
+  background: rgba(255,255,255,0.9);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+input[type="text"], input[type="email"], input[type="password"], textarea, select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: var(--white);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* Educational Elements */
+.educational-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--success-color), #229954);
+  color: var(--white);
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--success-color), var(--secondary-color));
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+/* Course Cards */
+.course-card {
+  background: var(--white);
+  border-radius: 15px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.course-card::before {
+  content: '📚';
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 2rem;
+  opacity: 0.1;
+}
+
+.course-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--secondary-color);
+}
+
+/* Rendered markdown inside course lessons */
+.lesson {
+  line-height: 1.8;
+  background: rgba(255,255,255,0.95);
+  padding: 2rem;
+  border-radius: 15px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.lesson::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--secondary-color), var(--accent-color), var(--success-color));
+}
+
 .lesson h1, .lesson h2, .lesson h3 {
-  margin: 12px 0 8px;
+  margin: 1.5rem 0 1rem;
+  color: var(--primary-color);
+}
+
+.lesson h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: 0.5rem;
+}
+
+.lesson h2 {
+  font-size: 1.5rem;
+  border-left: 4px solid var(--secondary-color);
+  padding-left: 1rem;
 }
 
 .lesson p {
-  margin: 8px 0;
+  margin: 1rem 0;
+  text-align: justify;
 }
 
 .lesson ul, .lesson ol {
-  margin: 8px 0 8px 22px;
+  margin: 1rem 0 1rem 2rem;
+}
+
+.lesson li {
+  margin-bottom: 0.5rem;
 }
 
 .lesson code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 0.95em;
-  background: #f2f2f2;
-  padding: 2px 5px;
-  border-radius: 4px;
+  font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9em;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  color: var(--primary-color);
 }
 
 .lesson pre {
-  background: #111;
-  color: #eee;
-  padding: 12px;
-  border-radius: 8px;
+  background: linear-gradient(135deg, #2c3e50, #34495e);
+  color: #ecf0f1;
+  padding: 1.5rem;
+  border-radius: 10px;
   overflow-x: auto;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  position: relative;
+}
+
+.lesson pre::before {
+  content: '💻';
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 1rem;
+  opacity: 0.5;
 }
 
 .lesson pre code {
   background: transparent;
   padding: 0;
   color: inherit;
+  border: none;
 }
 
 .lesson blockquote {
-  margin: 12px 0;
-  padding: 8px 12px;
-  border-left: 4px solid #bbb;
-  background: #f6f6f6;
+  margin: 1.5rem 0;
+  padding: 1rem 1.5rem;
+  border-left: 5px solid var(--secondary-color);
+  background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(52, 152, 219, 0.05));
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  position: relative;
 }
-.topbar nav a { margin-right: 12px; }
 
-.topbar nav form { margin: 0; }
+.lesson blockquote::before {
+  content: '💡';
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  background: linear-gradient(135deg, var(--primary-color), #34495e);
+  color: var(--white);
+  font-weight: 600;
+}
+
+tr:hover {
+  background: rgba(52, 152, 219, 0.05);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    margin: 1rem;
+    padding: 1rem;
+  }
+  
+  .topbar {
+    padding: 1rem;
+  }
+  
+  .brand {
+    display: block;
+    margin-bottom: 1rem;
+  }
+  
+  .topbar nav {
+    display: block;
+  }
+  
+  .topbar nav a {
+    display: block;
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  .lesson {
+    padding: 1rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.container, .course-card, .lesson {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--light-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--secondary-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2980b9;
+}

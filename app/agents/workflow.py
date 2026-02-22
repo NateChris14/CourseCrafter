@@ -3,7 +3,7 @@ import re
 from pydantic import ValidationError
 
 from app.agents.schemas import RoadmapOutline
-from app.agents.llm.ollama import OllamaOpenAIClient
+from app.agents.llm.client import get_llm_client
 from app.settings import settings
 
 
@@ -37,19 +37,23 @@ Rules:
 
 def _extract_first_json_object(text: str) -> str | None:
     """
-    Extract the first top-level JSON object from a string.
-    This handles cases where the model wraps JSON with extra text.
+    Extract the first complete top-level JSON object using brace counting.
+    Returns the first balanced { ... } substring, or None if not found.
     """
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         return None
-    candidate = text[start:end + 1].strip()
-
-    # quick sanity: must start/end like an object
-    if not (candidate.startswith("{") and candidate.endswith("}")):
-        return None
-    return candidate
+    
+    brace_count = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            brace_count += 1
+        elif text[i] == "}":
+            brace_count -= 1
+            if brace_count == 0:
+                return text[start:i + 1]
+    
+    return None
 
 
 def _validate_outline(outline: RoadmapOutline, duration_weeks: int) -> None:
@@ -60,46 +64,63 @@ def _validate_outline(outline: RoadmapOutline, duration_weeks: int) -> None:
     nums = [w.week for w in outline.weeks]
     if nums != list(range(1, duration_weeks + 1)):
         raise ValueError(f"Week numbers must be exactly 1..{duration_weeks} in order, got {nums}")
+    
+    # Additional sanity checks
+    for week in outline.weeks:
+        if not week.title or not week.title.strip():
+            raise ValueError(f"Week {week.week} title is empty")
+        if len(week.outcomes) < 2 or len(week.outcomes) > 6:
+            raise ValueError(f"Week {week.week} must have 2-6 outcomes, got {len(week.outcomes)}")
+        for outcome in week.outcomes:
+            if not outcome or not outcome.strip():
+                raise ValueError(f"Week {week.week} has empty outcome")
 
 
 def generate_roadmap_outline(field: str, level: str, weekly_hours: int, duration_weeks: int) -> RoadmapOutline:
-    llm = OllamaOpenAIClient(
-        base_url=settings.ollama_base_url,
-        model=settings.ollama_model,
-    )
+    llm = get_llm_client()
 
     user_prompt = build_planner_prompt(field, level, weekly_hours, duration_weeks)
 
     last_err: Exception | None = None
 
     for attempt in range(1, 4):
-        text = llm.generate_text(system=SYSTEM_PLANNER, user=user_prompt, temperature=0.2)
+        raw_text = llm.generate_text(system=SYSTEM_PLANNER, user=user_prompt, temperature=0.1)
 
         # 1) Try strict JSON validation
         try:
-            outline = RoadmapOutline.model_validate_json(text)
+            outline = RoadmapOutline.model_validate_json(raw_text)
             _validate_outline(outline, duration_weeks)
             return outline
         except (ValidationError, ValueError) as e:
             last_err = e
 
         # 2) Try extracting embedded JSON object
-        extracted = _extract_first_json_object(text)
-        if extracted:
+        extracted_json = _extract_first_json_object(raw_text)
+        if extracted_json:
             try:
-                outline = RoadmapOutline.model_validate_json(extracted)
+                outline = RoadmapOutline.model_validate_json(extracted_json)
                 _validate_outline(outline, duration_weeks)
                 return outline
             except (ValidationError, ValueError) as e:
                 last_err = e
 
-        # 3) Repair instruction and retry
-        user_prompt = (
-            user_prompt
-            + "\n\nYour previous response was invalid."
-            + "\nReturn ONLY JSON. No markdown. No extra keys."
-            + f"\nMake weeks exactly {duration_weeks} items with week numbers 1..{duration_weeks}."
-        )
+        # 3) Build repair prompt with detailed error info
+        error_text = str(last_err)
+        invalid_json = extracted_json if extracted_json else raw_text
+        
+        user_prompt = f"""
+{build_planner_prompt(field, level, weekly_hours, duration_weeks)}
+
+PREVIOUS ATTEMPT FAILED:
+Error: {error_text}
+
+Invalid output:
+{invalid_json}
+
+Return ONLY corrected JSON, no extra keys, no markdown.
+Must have exactly {duration_weeks} weeks with numbers 1..{duration_weeks}.
+Each week needs 2-6 outcomes and non-empty title.
+""".strip()
 
     raise RuntimeError(f"Planner output did not validate after retries. Last error: {last_err}")
 

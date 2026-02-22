@@ -3,10 +3,6 @@
 
 <h1>My saved courses</h1>
 
-{% if request.query_params.get("deleted") %}
-  <p style="color: #2b8a3e;">Deleted.</p>
-{% endif %}
-
 {% if courses|length == 0 %}
   <p>You don’t have any saved courses yet.</p>
   <p><a href="/dashboard">Go to dashboard</a></p>
@@ -25,6 +21,8 @@
         Status: <b>{{ c.status }}</b>
         &nbsp;|&nbsp;
         <a href="/courses/{{ c.id }}">Open</a>
+        &nbsp;|&nbsp;
+        <a href="/courses/{{ c.id }}/edit">Edit</a>
         &nbsp;|&nbsp;
 
         <form method="post" action="/courses/{{ c.id }}/generate" style="display:inline;">
@@ -45,4 +43,3 @@
 {% endif %}
 
 {% endblock %}
-

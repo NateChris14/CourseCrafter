@@ -2,11 +2,12 @@
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from starlette import status
 
 from markdown_it import MarkdownIt
 from markupsafe import Markup
@@ -155,3 +156,48 @@ def delete_course(
     db.commit()
 
     return RedirectResponse(url="/courses?deleted=1", status_code=303)
+
+@router.get("/{course_id}/edit", response_class=HTMLResponse)
+def edit_course_page(
+    request: Request,
+    course_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    course = (
+        db.query(Course)
+        .filter(Course.id == course_id, Course.user_id == user.id)
+        .first()
+    )
+    if not course:
+        return RedirectResponse("/courses?error=course_not_found",
+        status_code=303)
+
+    return templates.TemplateResponse(
+        "courses_edit.html",
+        {"request": request, "course": course},
+    )
+
+@router.post("/{course_id}/edit")
+def edit_course_save(
+    course_id: uuid.UUID,
+    title: str = Form(...),
+    description: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+
+    course = (
+        db.query(Course)
+        .filter(Course.id == course_id, Course.user_id == user.id)
+        .first()
+    )
+    if not course:
+        return RedirectResponse("/courses?error=course_not_found", status_code=303)
+    
+    course.title = title.strip()
+    course.description = (description or "").strip()
+
+    db.commit()
+
+    return RedirectResponse(f"/courses/{course_id}", status_code=status.HTTP_303_SEE_OTHER)

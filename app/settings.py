@@ -17,5 +17,11 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434/v1"
     ollama_model: str = "llama3.1"
 
+    # Production settings
+    LLM_PROVIDER: str = "ollama"
+    GROQ_API_KEY: str
+    GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
+    GROQ_MODEL: str = "llama-3.1-8b-instant"
+
 
 settings = Settings()

@@ -4,7 +4,15 @@
 <h1>{{ course.title }}</h1>
 {% if course.description %}<p>{{ course.description }}</p>{% endif %}
 
+<div style="margin: 12px 0;">
+  <a href="/courses/{{ course.id }}/edit">Edit</a>
+</div>
+
 <form method="post" action="/courses/{{ course.id }}/generate" style="margin: 12px 0;">
+  <label style="display:inline-block; margin-right: 12px;">
+    <input type="checkbox" name="overwrite" value="1">
+    Overwrite existing lessons
+  </label>
   <button type="submit">Generate full course (Markdown)</button>
 </form>
 

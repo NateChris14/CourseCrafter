@@ -7,9 +7,14 @@ Queue pattern:
 - Worker BRPOPLPUSH pending -> processing (atomic, reliable)
 - ACK via LREM on processing
 - Retry by moving back to pending with attempt increment
+
+Notes:
+- BRPOPLPUSH is a blocking variant that atomically moves an item between lists. [web:968]
+- After processing, removing the specific item from the processing list via LREM is the usual ACK step. [web:969]
 """
 import json
 import uuid
+import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any
 
@@ -29,7 +34,17 @@ PENDING_Q = "roadmap_generation_queue"
 PROCESSING_Q = "roadmap_generation_processing"
 MAX_RETRIES = 3
 
-redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
+
+def _to_uuid(v: str | uuid.UUID | None) -> uuid.UUID | None:
+    if v is None:
+        return None
+    if isinstance(v, uuid.UUID):
+        return v
+    return uuid.UUID(str(v))
+
+
+# decode_responses=True returns strings instead of bytes (handy for JSON payloads). [web:976]
+redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)  # [web:976]
 
 engine = create_engine(settings.database_url, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -38,7 +53,13 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 # -------------------------
 # Queue API (producer)
 # -------------------------
-def enqueue_job(*, job_type: str, run_id: str, course_id: str | None = None) -> str:
+def enqueue_job(
+    *,
+    job_type: str,
+    run_id: str,
+    course_id: str | None = None,
+    overwrite: bool = False,
+) -> str:
     """Enqueue a job into Redis and return task_id."""
     task_id = str(uuid.uuid4())
     task_data = {
@@ -46,6 +67,7 @@ def enqueue_job(*, job_type: str, run_id: str, course_id: str | None = None) -> 
         "type": job_type,  # "generate_roadmap_outline" | "generate_course_modules"
         "run_id": run_id,
         "course_id": course_id,
+        "overwrite": bool(overwrite),
         "attempt": 0,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -73,9 +95,13 @@ def update_run(
     finished: bool = False,
 ) -> None:
     """Best-effort DB update helper."""
+    run_uuid = _to_uuid(run_id)
+    if run_uuid is None:
+        return
+
     db = SessionLocal()
     try:
-        run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
+        run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
         if not run:
             return
 
@@ -104,9 +130,13 @@ def update_run(
 # Job handlers (worker)
 # -------------------------
 def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
+    run_uuid = _to_uuid(run_id)
+    if run_uuid is None:
+        return {"ok": False, "error": "invalid run_id"}
+
     db = SessionLocal()
     try:
-        run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
+        run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
         if not run:
             return {"ok": False, "error": "run not found"}
 
@@ -180,7 +210,7 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         return {"ok": True, "course_id": str(course.id)}
 
     except Exception as e:
-        run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
+        run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
         if run:
             run.status = "failed"
             run.error = f"{type(e).__name__}: {e}"
@@ -191,16 +221,26 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         db.close()
 
 
-def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
+def generate_course_modules_sync(
+    run_id: str,
+    course_id: str,
+    *,
+    overwrite: bool = False,
+) -> Dict[str, Any]:
+    run_uuid = _to_uuid(run_id)
+    course_uuid = _to_uuid(course_id)
+    if run_uuid is None or course_uuid is None:
+        return {"ok": False, "error": "invalid run_id/course_id"}
+
     db = SessionLocal()
     try:
-        run = db.query(GenerationRun).filter(GenerationRun.id == run_id).first()
+        run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
         if not run:
             return {"ok": False, "error": "run not found"}
 
         course = (
             db.query(Course)
-            .filter(Course.id == course_id, Course.user_id == run.user_id)
+            .filter(Course.id == course_uuid, Course.user_id == run.user_id)
             .first()
         )
         if not course:
@@ -234,15 +274,21 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
         )
 
         total = len(modules)
-        for i, m in enumerate(modules, start=1):
-            if m.content_md and m.content_md.strip():
+        written = 0
+        skipped = 0
+
+        for m in modules:
+            has_content = bool(m.content_md and m.content_md.strip())
+            if has_content and not overwrite:
+                skipped += 1
                 continue
 
             outcomes = json.loads(m.outcomes_json)
 
+            done = written + skipped
             update_run(
                 run_id,
-                progress=int(5 + (i - 1) * (90 / total)),
+                progress=int(5 + done * (90 / max(total, 1))),
                 message=f"Writing week {m.week}/{total}: {m.title}",
             )
 
@@ -255,6 +301,7 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
             )
             m.content_md = md
             db.commit()
+            written += 1
 
         course.status = "ready"
         db.commit()
@@ -263,10 +310,10 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
             run_id,
             status="succeeded",
             progress=100,
-            message="Course content ready",
+            message=f"Course content ready (written={written}, skipped={skipped}, overwrite={bool(overwrite)})",
             finished=True,
         )
-        return {"ok": True}
+        return {"ok": True, "written": written, "skipped": skipped}
 
     except Exception as e:
         update_run(run_id, status="failed", error=f"{type(e).__name__}: {e}", finished=True)
@@ -280,36 +327,56 @@ def generate_course_modules_sync(run_id: str, course_id: str) -> Dict[str, Any]:
 # -------------------------
 def process_roadmap_generation_queue():
     """Reliable queue consumer: pending -> processing -> ack with retries."""
+    print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Starting loop. pending={PENDING_Q} processing={PROCESSING_Q}")
+
     while True:
         task_raw = None
         try:
-            task_raw = redis_client.brpoplpush(PENDING_Q, PROCESSING_Q, timeout=30)
+            # Atomically move task from pending -> processing and block up to 30s. [web:968]
+            task_raw = redis_client.brpoplpush(PENDING_Q, PROCESSING_Q, timeout=30)  # [web:968]
             if not task_raw:
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] idle (no jobs)")
                 continue
 
             task = json.loads(task_raw)
             job_type = task.get("type", "generate_roadmap_outline")
             run_id = task.get("run_id")
             course_id = task.get("course_id")
+            overwrite = bool(task.get("overwrite", False))
 
             if not run_id:
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                redis_client.lrem(PROCESSING_Q, 1, task_raw)  # [web:969]
                 continue
 
+            print(
+                f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] task={task.get('task_id')} type={job_type} run_id={run_id} "
+                f"course_id={course_id} overwrite={overwrite} attempt={task.get('attempt')}"
+            )
+
+            # Flip from "queued" immediately so UI doesn't sit there.
+            print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Updating run to 'running' status")
+            update_run(run_id, status="running", progress=1, message="Worker picked up job", started=True)
+
             if job_type == "generate_roadmap_outline":
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Starting roadmap outline generation")
                 generate_roadmap_outline_sync(run_id)
             elif job_type == "generate_course_modules":
                 if not course_id:
+                    print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] ERROR: course_id missing in job payload")
                     update_run(run_id, status="failed", error="course_id missing in job payload", finished=True)
                 else:
-                    generate_course_modules_sync(run_id, course_id)
+                    print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Starting course modules generation")
+                    generate_course_modules_sync(run_id, course_id, overwrite=overwrite)
             else:
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] ERROR: Unknown job type: {job_type}")
                 update_run(run_id, status="failed", error=f"Unknown job type: {job_type}", finished=True)
 
-            redis_client.lrem(PROCESSING_Q, 1, task_raw)
+            print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Task completed, removing from processing queue")
+            redis_client.lrem(PROCESSING_Q, 1, task_raw)  # [web:969]
 
         except Exception as e:
-            print(f"Error processing task: {e}")
+            print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Error processing task (full traceback below):")
+            traceback.print_exc()  # [web:972]
 
             if not task_raw:
                 continue
@@ -317,7 +384,7 @@ def process_roadmap_generation_queue():
             try:
                 task = json.loads(task_raw)
             except Exception:
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                redis_client.lrem(PROCESSING_Q, 1, task_raw)  # [web:969]
                 continue
 
             run_id = task.get("run_id")
@@ -325,6 +392,7 @@ def process_roadmap_generation_queue():
             task["attempt"] = attempt
 
             if run_id:
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Updating run for retry {attempt}/{MAX_RETRIES}")
                 update_run(
                     run_id,
                     status="running",
@@ -332,9 +400,11 @@ def process_roadmap_generation_queue():
                 )
 
             if attempt <= MAX_RETRIES:
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Re-queueing task for retry")
+                redis_client.lrem(PROCESSING_Q, 1, task_raw)  # [web:969]
                 redis_client.lpush(PENDING_Q, json.dumps(task))
             else:
+                print(f"[{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}] [worker] Max retries exceeded, marking as failed")
                 if run_id:
                     update_run(
                         run_id,
@@ -342,4 +412,5 @@ def process_roadmap_generation_queue():
                         error=f"Retries exhausted: {type(e).__name__}: {e}",
                         finished=True,
                     )
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                redis_client.lrem(PROCESSING_Q, 1, task_raw)  # [web:969]
+
