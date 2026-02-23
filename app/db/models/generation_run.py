@@ -27,7 +27,7 @@ class GenerationRun(Base):
 
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="queued")  # queued/running/succeeded/failed
     progress: Mapped[int] = mapped_column(nullable=False, default=0)  # 0-100
-    message: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

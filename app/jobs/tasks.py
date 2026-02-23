@@ -26,11 +26,7 @@ from app.db.models.course import Course
 from app.db.models.course_module import CourseModule
 
 from app.agents.workflow import generate_roadmap_outline
-
-# IMPORTANT: builder-only graph (no PostgresSaver context manager inside the graph module)
 from app.graphs.course_generation import build_course_generation_graph_builder
-from langgraph.checkpoint.postgres import PostgresSaver
-from psycopg import Connection
 
 PENDING_Q = "roadmap_generation_queue"
 PROCESSING_Q = "roadmap_generation_processing"
@@ -50,6 +46,49 @@ def _ts() -> str:
 
 
 redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
+
+
+def get_queue_status() -> Dict[str, Any]:
+    """Get current queue status for display to users."""
+    pending = redis_client.lrange(PENDING_Q, 0, -1)
+    processing = redis_client.lrange(PROCESSING_Q, 0, -1)
+
+    pending_tasks = []
+    for item in pending:
+        try:
+            task = json.loads(item)
+            pending_tasks.append({
+                "task_id": task.get("task_id"),
+                "type": task.get("type"),
+                "run_id": task.get("run_id"),
+                "course_id": task.get("course_id"),
+                "attempt": task.get("attempt", 0),
+                "timestamp": task.get("timestamp"),
+            })
+        except Exception:
+            pass
+
+    processing_tasks = []
+    for item in processing:
+        try:
+            task = json.loads(item)
+            processing_tasks.append({
+                "task_id": task.get("task_id"),
+                "type": task.get("type"),
+                "run_id": task.get("run_id"),
+                "course_id": task.get("course_id"),
+                "attempt": task.get("attempt", 0),
+                "timestamp": task.get("timestamp"),
+            })
+        except Exception:
+            pass
+
+    return {
+        "pending_count": len(pending_tasks),
+        "processing_count": len(processing_tasks),
+        "pending": pending_tasks,
+        "processing": processing_tasks,
+    }
 
 
 # -------------------------
@@ -78,6 +117,74 @@ def enqueue_job(
 
 def queue_roadmap_generation(run_id: str) -> str:
     return enqueue_job(job_type="generate_roadmap_outline", run_id=run_id)
+
+
+# -------------------------
+# Queue management
+# -------------------------
+def clear_pending_queue() -> int:
+    """Clear all pending jobs from the queue. Returns number of jobs removed."""
+    count = 0
+    while redis_client.lpop(PENDING_Q):
+        count += 1
+    return count
+
+
+def stop_processing_job(run_id: str) -> bool:
+    """Remove a specific job from the processing queue and mark it as failed."""
+    # Find and remove from processing queue
+    processing = redis_client.lrange(PROCESSING_Q, 0, -1)
+    for item in processing:
+        try:
+            task = json.loads(item)
+            if task.get("run_id") == run_id:
+                redis_client.lrem(PROCESSING_Q, 1, item)
+                # Mark run as failed
+                update_run(run_id, status="failed", error="Cancelled by user", finished=True)
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def clear_processing_queue() -> int:
+    """Clear all jobs from processing queue and mark them as failed. Returns number of jobs removed."""
+    count = 0
+    processing = redis_client.lrange(PROCESSING_Q, 0, -1)
+    for item in processing:
+        try:
+            task = json.loads(item)
+            run_id = task.get("run_id")
+            if run_id:
+                update_run(run_id, status="failed", error="Cancelled by user (queue cleared)", finished=True)
+            redis_client.lrem(PROCESSING_Q, 1, item)
+            count += 1
+        except Exception:
+            continue
+    return count
+
+
+def cancel_job_by_run_id(run_id: str) -> Dict[str, Any]:
+    """Cancel a job by run_id - removes from pending or processing and marks as failed."""
+    # Check pending queue
+    pending = redis_client.lrange(PENDING_Q, 0, -1)
+    for item in pending:
+        try:
+            task = json.loads(item)
+            if task.get("run_id") == run_id:
+                redis_client.lrem(PENDING_Q, 1, item)
+                update_run(run_id, status="failed", error="Cancelled by user", finished=True)
+                return {"ok": True, "removed_from": "pending"}
+        except Exception:
+            continue
+
+    # Check processing queue
+    if stop_processing_job(run_id):
+        return {"ok": True, "removed_from": "processing"}
+
+    # Job not found in queues, but mark as failed anyway
+    update_run(run_id, status="failed", error="Cancelled by user", finished=True)
+    return {"ok": True, "removed_from": "none", "note": "Job was not in queue"}
 
 
 # -------------------------
@@ -184,37 +291,47 @@ def generate_course_modules_langgraph(
     """
     Run (or resume) course module generation via LangGraph + Postgres checkpoints.
 
-    Key point: compile + invoke inside the same PostgresSaver context so the
-    underlying psycopg connection isn't closed early. [web:1272][web:895]
+    Compile+invoke inside the PostgresSaver context manager so the underlying
+    connection stays open during execution. [web:904]
     """
+    print(f"[DEBUG generate_course_modules_langgraph] START run_id={run_id} course_id={course_id} overwrite={overwrite}")
     if _to_uuid(run_id) is None:
         return {"ok": False, "error": "invalid run_id"}
     if _to_uuid(course_id) is None:
         return {"ok": False, "error": "invalid course_id"}
 
+    from langgraph.checkpoint.postgres import PostgresSaver
+
     builder = build_course_generation_graph_builder()
 
-    # Use PostgresSaver with a persistent connection 
-    # Create connection manually and pass it to PostgresSaver
-    conn = Connection.connect(settings.langgraph_postgres_dsn)
-    checkpointer = PostgresSaver(conn=conn)
-    try:
+    thread_id = str(run_id)
+    config = {"configurable": {"thread_id": thread_id}}
+
+    print(f"[DEBUG generate_course_modules_langgraph] thread_id={thread_id} config={config}")
+
+    with PostgresSaver.from_conn_string(settings.langgraph_postgres_dsn) as checkpointer:
         checkpointer.setup()
+
+        # Check if there's existing checkpoint state
+        existing_state = checkpointer.get(config)
+        print(f"[DEBUG generate_course_modules_langgraph] existing checkpoint state: {existing_state}")
+
         graph = builder.compile(checkpointer=checkpointer)
+
+        print(f"[DEBUG generate_course_modules_langgraph] invoking graph with initial state...")
         graph.invoke(
             {
-                "run_id": run_id,
-                "course_id": course_id,
+                "run_id": str(run_id),
+                "course_id": str(course_id),
                 "overwrite": bool(overwrite),
                 "pending_weeks": [],
                 "done_weeks": [],
                 "total": 0,
             },
-            config={"configurable": {"thread_id": run_id}},
+            config=config,
         )
-    finally:
-        conn.close()
 
+    print(f"[DEBUG generate_course_modules_langgraph] END")
     return {"ok": True}
 
 
@@ -250,14 +367,12 @@ def process_roadmap_generation_queue():
             update_run(run_id, status="running", progress=1, message="Worker picked up job", started=True)
 
             if job_type == "generate_roadmap_outline":
-                print(f"[{_ts()}] [worker] Starting roadmap outline generation")
                 generate_roadmap_outline_sync(run_id)
 
             elif job_type == "generate_course_modules":
                 if not course_id:
                     update_run(run_id, status="failed", error="course_id missing in job payload", finished=True)
                 else:
-                    print(f"[{_ts()}] [worker] Starting course modules generation (LangGraph)")
                     generate_course_modules_langgraph(run_id, course_id, overwrite=overwrite)
 
             else:
@@ -282,17 +397,21 @@ def process_roadmap_generation_queue():
             attempt = int(task.get("attempt", 0)) + 1
             task["attempt"] = attempt
 
+            print(f"[{_ts()}] [worker] Retrying task. run_id={run_id} attempt={attempt}/{MAX_RETRIES} error={type(e).__name__}: {e}")
+
             if run_id:
                 update_run(
                     run_id,
                     status="running",
-                    message=f"Retry {attempt}/{MAX_RETRIES} after error: {type(e).__name__}: {e}",
+                    progress=1,  # Reset progress on retry
+                    message=f"Retry {attempt}/{MAX_RETRIES} after error: {type(e).__name__}",
                 )
 
             if attempt <= MAX_RETRIES:
                 redis_client.lrem(PROCESSING_Q, 1, task_raw)
                 redis_client.lpush(PENDING_Q, json.dumps(task))
             else:
+                print(f"[{_ts()}] [worker] Max retries exceeded for run_id={run_id}")
                 if run_id:
                     update_run(
                         run_id,

@@ -67,19 +67,25 @@ def validate_module_markdown(md: str) -> None:
     for line in lines:
         line = line.strip()
         if line.startswith('## '):
-            heading = line
+            heading = line.lower()  # Normalize to lowercase for comparison
             found_headings.append(heading)
-            in_practice_section = (heading == "## Practice exercises")
+            in_practice_section = (heading == "## practice exercises")
         elif in_practice_section and line and (line[0].isdigit() or line.startswith('-')):
             practice_exercises_content.append(line)
     
-    # Check all required headings exist in order
-    if found_headings != required_headings:
-        missing = set(required_headings) - set(found_headings)
-        extra = set(found_headings) - set(required_headings)
+    # Normalize required headings to lowercase for comparison
+    normalized_required = [h.lower() for h in required_headings]
+    
+    # Check all required headings exist (case-insensitive)
+    missing = set(normalized_required) - set(found_headings)
+    extra = set(found_headings) - set(normalized_required)
+    
+    if missing or extra:
         error_msg = "Invalid headings structure"
         if missing:
-            error_msg += f". Missing: {missing}"
+            # Show original case for missing headings
+            original_missing = [h for h in required_headings if h.lower() in missing]
+            error_msg += f". Missing: {set(original_missing)}"
         if extra:
             error_msg += f". Extra: {extra}"
         raise ValueError(error_msg)

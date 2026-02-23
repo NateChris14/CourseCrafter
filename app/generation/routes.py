@@ -11,7 +11,7 @@ from app.db.models.user import User
 from app.db.models.roadmap import Roadmap
 from app.db.models.course import Course
 from app.db.models.generation_run import GenerationRun
-from app.jobs.tasks import queue_roadmap_generation, enqueue_job
+from app.jobs.tasks import queue_roadmap_generation, enqueue_job, get_queue_status, clear_pending_queue, clear_processing_queue, cancel_job_by_run_id
 
 router = APIRouter()
 
@@ -115,3 +115,112 @@ def get_run_status(
             "result_json": run.result_json if run.status == "succeeded" else None,
         }
     )
+
+
+@router.get("/runs")
+def get_user_active_runs(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get all active (non-completed) generation runs for the current user."""
+    runs = (
+        db.query(GenerationRun)
+        .filter(
+            GenerationRun.user_id == user.id,
+            GenerationRun.status.in_(["queued", "processing"])
+        )
+        .order_by(GenerationRun.created_at.desc())
+        .all()
+    )
+    return JSONResponse([
+        {
+            "id": str(run.id),
+            "status": run.status,
+            "progress": run.progress,
+            "message": run.message,
+            "course_id": str(run.course_id) if run.course_id else None,
+            "roadmap_id": str(run.roadmap_id) if run.roadmap_id else None,
+            "created_at": run.created_at.isoformat() if run.created_at else None,
+        }
+        for run in runs
+    ])
+
+
+@router.get("/queue/status")
+def queue_status(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get current queue status (pending and processing jobs)."""
+    status = get_queue_status()
+
+    # Enrich with run details from DB
+    for task_list in [status.get("pending", []), status.get("processing", [])]:
+        for task in task_list:
+            run_id = task.get("run_id")
+            if run_id:
+                run = db.query(GenerationRun).filter(
+                    GenerationRun.id == uuid.UUID(str(run_id)),
+                    GenerationRun.user_id == user.id
+                ).first()
+                if run:
+                    task["run_status"] = run.status
+                    task["progress"] = run.progress
+                    task["message"] = run.message
+
+    return JSONResponse(status)
+
+
+@router.post("/queue/clear-pending")
+def clear_pending(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Clear all pending jobs from the queue."""
+    count = clear_pending_queue()
+    return JSONResponse({"ok": True, "cleared": count})
+
+
+@router.post("/queue/clear-processing")
+def clear_processing(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Clear all processing jobs and mark them as failed."""
+    count = clear_processing_queue()
+    return JSONResponse({"ok": True, "cleared": count})
+
+
+@router.post("/queue/clear-all")
+def clear_all(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Clear both pending and processing queues."""
+    pending_count = clear_pending_queue()
+    processing_count = clear_processing_queue()
+    return JSONResponse({
+        "ok": True,
+        "cleared_pending": pending_count,
+        "cleared_processing": processing_count,
+        "total": pending_count + processing_count
+    })
+
+
+@router.post("/runs/{run_id}/cancel")
+def cancel_run(
+    run_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Cancel a specific run by removing it from queue and marking as failed."""
+    # Verify user owns this run
+    run = db.query(GenerationRun).filter(
+        GenerationRun.id == run_id,
+        GenerationRun.user_id == user.id
+    ).first()
+    if not run:
+        return JSONResponse({"error": "not_found"}, status_code=404)
+
+    result = cancel_job_by_run_id(str(run_id))
+    return JSONResponse(result)
