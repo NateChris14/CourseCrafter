@@ -19,5 +19,6 @@ class CourseModule(Base):
 
     outcomes_json: Mapped[str] = mapped_column(Text, nullable=False)   # store list[str] as JSON string for MVP
     content_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    media_suggestions_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # store image/video suggestions as JSON
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

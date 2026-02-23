@@ -10,7 +10,13 @@ Output must contain exactly these H2 headings in order:
 ## Practice exercises
 ## Common mistakes
 ## Suggested resources
+## Media suggestions
 No other top-level headings (# or ##) allowed.
+
+In the "Media suggestions" section, suggest 2-3 relevant images and 1-2 YouTube videos that would enhance understanding.
+Use this format:
+- Image: [brief description] - search keywords: [relevant search terms]
+- Video: [video title] - search: [topic keywords] OR YouTube URL if known
 """
 
 def build_module_prompt(field: str, level: str, week: int, title: str,
@@ -39,12 +45,14 @@ Write a markdown lesson with these EXACT headings (use H2 ## format):
 ## Practice exercises (exactly 3 numbered items)
 ## Common mistakes
 ## Suggested resources
+## Media suggestions
 
 Requirements:
 - Output must be Markdown only
-- Use exactly these 6 headings in this order
+- Use exactly these 7 headings in this order
 - No additional top-level headings
 - Practice exercises section must have exactly 3 numbered items
+- Media suggestions must include 2-3 image suggestions and 1-2 video suggestions
 - Keep content practical and concise
 """.strip()
 
@@ -56,7 +64,8 @@ def validate_module_markdown(md: str) -> None:
         "## Worked example",
         "## Practice exercises",
         "## Common mistakes",
-        "## Suggested resources"
+        "## Suggested resources",
+        "## Media suggestions"
     ]
     
     lines = md.split('\n')

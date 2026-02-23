@@ -96,6 +96,38 @@ def load_state(state: GenState, config: RunnableConfig) -> GenState:
         db.close()
 
 
+def _parse_media_suggestions(md: str) -> dict:
+    """Parse media suggestions from markdown content."""
+    import re
+    images = []
+    videos = []
+
+    # Find Media suggestions section
+    media_section = re.search(r'##\s*Media\s+suggestions(.*?)($|##)', md, re.DOTALL | re.IGNORECASE)
+    if not media_section:
+        return {"images": [], "videos": []}
+
+    content = media_section.group(1)
+
+    # Parse image suggestions
+    for match in re.finditer(r'-?\s*Image:\s*(.+?)\s*-\s*search\s*keywords?:\s*(.+?)(?:\n|$)', content, re.IGNORECASE):
+        images.append({
+            "description": match.group(1).strip(),
+            "search_keywords": match.group(2).strip()
+        })
+
+    # Parse video suggestions
+    for match in re.finditer(r'-?\s*Video:\s*(.+?)\s*-\s*(?:search:\s*(.+?)|youtube:\s*(https?://\S+))(?:\n|$)', content, re.IGNORECASE):
+        video = {"title": match.group(1).strip()}
+        if match.group(2):
+            video["search_keywords"] = match.group(2).strip()
+        if match.group(3):
+            video["youtube_url"] = match.group(3).strip()
+        videos.append(video)
+
+    return {"images": images, "videos": videos}
+
+
 def write_one_week(state: GenState, config: RunnableConfig) -> GenState:
     print(f"[DEBUG write_one_week] START done_weeks={state.get('done_weeks')} pending_weeks={state.get('pending_weeks')}")
     if not state.get("pending_weeks"):
@@ -150,8 +182,13 @@ def write_one_week(state: GenState, config: RunnableConfig) -> GenState:
             outcomes=outcomes,
         )
 
+        # Parse and save media suggestions
+        media_suggestions = _parse_media_suggestions(md)
+        module.media_suggestions_json = json.dumps(media_suggestions) if media_suggestions["images"] or media_suggestions["videos"] else None
         module.content_md = md
         db.commit()
+
+        print(f"[DEBUG write_one_week] Saved media suggestions: {len(media_suggestions['images'])} images, {len(media_suggestions['videos'])} videos")
 
         state["done_weeks"] = (state.get("done_weeks") or []) + [week]
         state["pending_weeks"] = state["pending_weeks"][1:]

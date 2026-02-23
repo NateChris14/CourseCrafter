@@ -78,6 +78,14 @@ def view_course(
         if m.content_md and m.content_md.strip():
             content_html = Markup(md.render(m.content_md))  # mark as safe for Jinja [web:722]
 
+        # Parse media suggestions if available
+        media_suggestions = None
+        if m.media_suggestions_json:
+            try:
+                media_suggestions = json.loads(m.media_suggestions_json)
+            except json.JSONDecodeError:
+                media_suggestions = None
+
         module_views.append(
             {
                 "week": m.week,
@@ -85,6 +93,7 @@ def view_course(
                 "outcomes": json.loads(m.outcomes_json),
                 "content_md": m.content_md,
                 "content_html": content_html,
+                "media_suggestions": media_suggestions,
             }
         )
 

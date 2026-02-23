@@ -78,6 +78,75 @@
       <div class="lesson">
         {{ m.content_html }}
       </div>
+
+      {% if m.media_suggestions %}
+      <div class="media-overlay" style="margin-top: 20px; padding: 16px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
+        <h4 style="margin: 0 0 12px 0; color: #fff;">📺 Recommended Media</h4>
+
+        {% if m.media_suggestions.images %}
+        <div class="image-suggestions" style="margin-bottom: 16px;">
+          <h5 style="margin: 0 0 8px 0; color: #bbb; font-size: 0.9em;">Images</h5>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for img in m.media_suggestions.images %}
+            <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" style="text-decoration: none; flex: 1; min-width: 200px; max-width: 300px;">
+              <div class="image-card" style="background: #2a2a3e; padding: 12px; border-radius: 6px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div style="width: 100%; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 2em; margin-bottom: 8px;">
+                  �
+                </div>
+                <p style="margin: 0; font-size: 0.85em; color: #ddd;">{{ img.description }}</p>
+                <small style="color: #888;">Click to search: {{ img.search_keywords }}</small>
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if m.media_suggestions.videos %}
+        <div class="video-suggestions">
+          <h5 style="margin: 0 0 8px 0; color: #bbb; font-size: 0.9em;">Videos</h5>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            {% for video in m.media_suggestions.videos %}
+              {% if video.youtube_url %}
+                {% set video_id = video.youtube_url.split('v=')[1] if 'v=' in video.youtube_url else video.youtube_url.split('/')[-1] %}
+                {% set embed_url = 'https://www.youtube.com/embed/' + video_id %}
+                <div class="video-card" style="flex: 1; min-width: 280px; max-width: 400px; background: #2a2a3e; padding: 12px; border-radius: 6px;">
+                  <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; margin-bottom: 8px;">
+                    <iframe
+                      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                      src="{{ embed_url }}"
+                      title="{{ video.title }}"
+                      frameborder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen>
+                    </iframe>
+                  </div>
+                  <p style="margin: 0; font-size: 0.9em; color: #ddd; font-weight: 600;">{{ video.title }}</p>
+                  {% if video.search_keywords %}
+                  <small style="color: #888;">Search: {{ video.search_keywords }}</small>
+                  {% endif %}
+                </div>
+              {% else %}
+                <a href="https://www.youtube.com/results?search_query={{ video.search_keywords | urlencode if video.search_keywords else video.title | urlencode }}" target="_blank" style="text-decoration: none; flex: 1; min-width: 280px; max-width: 400px;">
+                  <div class="video-card" style="background: #2a2a3e; padding: 12px; border-radius: 6px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                    <div style="width: 100%; height: 150px; background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 3em; margin-bottom: 8px;">
+                      ▶️
+                    </div>
+                    <p style="margin: 0; font-size: 0.9em; color: #ddd; font-weight: 600;">{{ video.title }}</p>
+                    {% if video.search_keywords %}
+                    <small style="color: #888;">Click to search: {{ video.search_keywords }}</small>
+                    {% else %}
+                    <small style="color: #888;">Click to search on YouTube</small>
+                    {% endif %}
+                  </div>
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
     {% else %}
       <p><i>Lesson content not generated yet.</i></p>
     {% endif %}
