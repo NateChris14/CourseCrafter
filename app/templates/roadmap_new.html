@@ -1,27 +1,121 @@
 {% extends "base.html" %}
+{% block title %}Create New Roadmap · CourseCrafter{% endblock %}
 {% block content %}
-<h1>New roadmap</h1>
 
-<form method="post" action="/roadmaps">
-  <label>Title</label>
-  <input name="title" required />
+<!-- Header Section -->
+<section style="margin-bottom: 32px;">
+  <div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="margin: 0 0 8px 0; font-size: 2rem;">Create New Roadmap</h1>
+    <p style="color: var(--text-secondary); margin: 0;">Design your course structure and learning objectives</p>
+  </div>
+</section>
 
-  <label>Field</label>
-  <input name="field" required placeholder="e.g., MLOps, Data Engineering" />
+<!-- Form Section -->
+<section style="max-width: 800px; margin: 0 auto;">
+  <div class="card" style="padding: 40px;">
+    <form method="post" action="/roadmaps">
+      <div style="display: grid; gap: 24px;">
+        
+        <!-- Title Field -->
+        <div>
+          <label for="title" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+            Course Title
+          </label>
+          <input 
+            id="title"
+            name="title" 
+            type="text" 
+            required 
+            placeholder="e.g., Complete Guide to Machine Learning"
+            style="width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;"
+          />
+        </div>
 
-  <label>Level</label>
-  <select name="level">
-    <option value="beginner">Beginner</option>
-    <option value="intermediate">Intermediate</option>
-    <option value="advanced">Advanced</option>
-  </select>
+        <!-- Field Field -->
+        <div>
+          <label for="field" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+            Subject Field
+          </label>
+          <input 
+            id="field"
+            name="field" 
+            type="text" 
+            required 
+            placeholder="e.g., MLOps, Data Engineering, Web Development"
+            style="width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;"
+          />
+        </div>
 
-  <label>Weekly hours</label>
-  <input name="weekly_hours" type="number" min="1" max="60" value="8" />
+        <!-- Level and Duration Row -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          
+          <!-- Level -->
+          <div>
+            <label for="level" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+              Difficulty Level
+            </label>
+            <select 
+              id="level"
+              name="level" 
+              style="width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;"
+            >
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
 
-  <label>Duration (weeks)</label>
-  <input name="duration_weeks" type="number" min="4" max="52" value="16" />
+          <!-- Weekly Hours -->
+          <div>
+            <label for="weekly_hours" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+              Weekly Hours
+            </label>
+            <input 
+              id="weekly_hours"
+              name="weekly_hours" 
+              type="number" 
+              min="1" 
+              max="60" 
+              value="8"
+              style="width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;"
+            />
+          </div>
+        </div>
 
-  <button type="submit">Create</button>
-</form>
+        <!-- Duration -->
+        <div>
+          <label for="duration_weeks" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">
+            Course Duration (weeks)
+          </label>
+          <input 
+            id="duration_weeks"
+            name="duration_weeks" 
+            type="number" 
+            min="4" 
+            max="52" 
+            value="16"
+            style="width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 1rem;"
+          />
+        </div>
+
+        <!-- Submit Button -->
+        <div style="display: flex; gap: 16px; justify-content: flex-end; margin-top: 32px;">
+          <a href="/dashboard" class="btn btn-secondary">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+            Cancel
+          </a>
+          <button type="submit" class="btn btn-primary btn-lg">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Create Roadmap
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+
 {% endblock %}

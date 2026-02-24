@@ -10,7 +10,6 @@ Queue pattern:
 """
 import json
 import uuid
-import traceback
 from datetime import datetime, timezone
 from typing import Dict, Any
 
@@ -19,6 +18,8 @@ import redis
 from app.settings import settings
 from app.db.session import SessionLocal
 from app.jobs.run_store import update_run
+from app.logger import GLOBAL_LOGGER as logger
+from app.exceptions.custom_exception import DocumentPortalException
 
 from app.db.models.generation_run import GenerationRun
 from app.db.models.roadmap import Roadmap
@@ -271,13 +272,14 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         return {"ok": True, "course_id": str(course.id)}
 
     except Exception as e:
+        logger.error(f"[generate_roadmap_outline_sync] Error: {str(e)}")
         run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
         if run:
             run.status = "failed"
             run.error = f"{type(e).__name__}: {e}"
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
-        raise
+        raise DocumentPortalException("Failed to generate roadmap outline", e)
     finally:
         db.close()
 
@@ -294,7 +296,7 @@ def generate_course_modules_langgraph(
     Compile+invoke inside the PostgresSaver context manager so the underlying
     connection stays open during execution. [web:904]
     """
-    print(f"[DEBUG generate_course_modules_langgraph] START run_id={run_id} course_id={course_id} overwrite={overwrite}")
+    logger.debug(f"[generate_course_modules_langgraph] START run_id={run_id} course_id={course_id} overwrite={overwrite}")
     if _to_uuid(run_id) is None:
         return {"ok": False, "error": "invalid run_id"}
     if _to_uuid(course_id) is None:
@@ -307,46 +309,50 @@ def generate_course_modules_langgraph(
     thread_id = str(run_id)
     config = {"configurable": {"thread_id": thread_id}}
 
-    print(f"[DEBUG generate_course_modules_langgraph] thread_id={thread_id} config={config}")
+    logger.debug(f"[generate_course_modules_langgraph] thread_id={thread_id} config={config}")
 
-    with PostgresSaver.from_conn_string(settings.langgraph_postgres_dsn) as checkpointer:
-        checkpointer.setup()
+    try:
+        with PostgresSaver.from_conn_string(settings.langgraph_postgres_dsn) as checkpointer:
+            checkpointer.setup()
 
-        # Check if there's existing checkpoint state
-        existing_state = checkpointer.get(config)
-        print(f"[DEBUG generate_course_modules_langgraph] existing checkpoint state: {existing_state}")
+            # Check if there's existing checkpoint state
+            existing_state = checkpointer.get(config)
+            logger.debug(f"[generate_course_modules_langgraph] existing checkpoint state: {existing_state}")
 
-        graph = builder.compile(checkpointer=checkpointer)
+            graph = builder.compile(checkpointer=checkpointer)
 
-        print(f"[DEBUG generate_course_modules_langgraph] invoking graph with initial state...")
-        graph.invoke(
-            {
-                "run_id": str(run_id),
-                "course_id": str(course_id),
-                "overwrite": bool(overwrite),
-                "pending_weeks": [],
-                "done_weeks": [],
-                "total": 0,
-            },
-            config=config,
-        )
+            logger.debug(f"[generate_course_modules_langgraph] invoking graph with initial state...")
+            graph.invoke(
+                {
+                    "run_id": str(run_id),
+                    "course_id": str(course_id),
+                    "overwrite": bool(overwrite),
+                    "pending_weeks": [],
+                    "done_weeks": [],
+                    "total": 0,
+                },
+                config=config,
+            )
 
-    print(f"[DEBUG generate_course_modules_langgraph] END")
-    return {"ok": True}
+        logger.debug("[generate_course_modules_langgraph] END")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"[generate_course_modules_langgraph] Error: {str(e)}")
+        raise DocumentPortalException("Failed to generate course modules", e)
 
 
 # -------------------------
 # Worker loop (consumer)
 # -------------------------
 def process_roadmap_generation_queue():
-    print(f"[{_ts()}] [worker] Starting loop. pending={PENDING_Q} processing={PROCESSING_Q}")
+    logger.info(f"[worker] Starting loop. pending={PENDING_Q} processing={PROCESSING_Q}")
 
     while True:
         task_raw = None
         try:
             task_raw = redis_client.brpoplpush(PENDING_Q, PROCESSING_Q, timeout=30)
             if not task_raw:
-                print(f"[{_ts()}] [worker] idle (no jobs)")
+                logger.debug(f"[worker] idle (no jobs)")
                 continue
 
             task = json.loads(task_raw)
@@ -359,8 +365,8 @@ def process_roadmap_generation_queue():
                 redis_client.lrem(PROCESSING_Q, 1, task_raw)
                 continue
 
-            print(
-                f"[{_ts()}] [worker] task={task.get('task_id')} type={job_type} run_id={run_id} "
+            logger.info(
+                f"[worker] task={task.get('task_id')} type={job_type} run_id={run_id} "
                 f"course_id={course_id} overwrite={overwrite} attempt={task.get('attempt')}"
             )
 
@@ -381,8 +387,7 @@ def process_roadmap_generation_queue():
             redis_client.lrem(PROCESSING_Q, 1, task_raw)
 
         except Exception as e:
-            print(f"[{_ts()}] [worker] Error processing task (full traceback below):")
-            traceback.print_exc()
+            logger.error(f"[worker] Error processing task: {str(e)}")
 
             if not task_raw:
                 continue
@@ -397,7 +402,7 @@ def process_roadmap_generation_queue():
             attempt = int(task.get("attempt", 0)) + 1
             task["attempt"] = attempt
 
-            print(f"[{_ts()}] [worker] Retrying task. run_id={run_id} attempt={attempt}/{MAX_RETRIES} error={type(e).__name__}: {e}")
+            logger.warning(f"[worker] Retrying task. run_id={run_id} attempt={attempt}/{MAX_RETRIES} error={type(e).__name__}: {e}")
 
             if run_id:
                 update_run(
@@ -411,7 +416,7 @@ def process_roadmap_generation_queue():
                 redis_client.lrem(PROCESSING_Q, 1, task_raw)
                 redis_client.lpush(PENDING_Q, json.dumps(task))
             else:
-                print(f"[{_ts()}] [worker] Max retries exceeded for run_id={run_id}")
+                logger.error(f"[worker] Max retries exceeded for run_id={run_id}")
                 if run_id:
                     update_run(
                         run_id,

@@ -1,4 +1,6 @@
 from app.agents.llm.client import get_llm_client
+from app.logger import GLOBAL_LOGGER as logger
+from app.exceptions.custom_exception import DocumentPortalException
 
 SYSTEM_MODULE_WRITER = """You are an expert course author.
 Write clear, structured Markdown only.
@@ -13,10 +15,12 @@ Output must contain exactly these H2 headings in order:
 ## Media suggestions
 No other top-level headings (# or ##) allowed.
 
-In the "Media suggestions" section, suggest 2-3 relevant images and 1-2 YouTube videos that would enhance understanding.
-Use this format:
+In the "Media suggestions" section, suggest 2-3 relevant images and 1-2 videos that would enhance understanding.
+Use this format ONLY:
 - Image: [brief description] - search keywords: [relevant search terms]
-- Video: [video title] - search: [topic keywords] OR YouTube URL if known
+- Video: [video title] - search keywords: [topic keywords]
+
+IMPORTANT: Never include URLs or YouTube links. Only provide search keywords that users can search for.
 """
 
 def build_module_prompt(field: str, level: str, week: int, title: str,
@@ -110,16 +114,21 @@ outcomes: list[str]) -> str:
     llm = get_llm_client()
     prompt = build_module_prompt(field, level, week, title, outcomes)
     
-    # First attempt
-    markdown = llm.generate_text(system=SYSTEM_MODULE_WRITER, user=prompt, temperature=0.2).strip()
+    logger.info(f"[write_module_markdown] Generating content for week {week}: {title}")
     
-    # Validate and repair if needed
     try:
-        validate_module_markdown(markdown)
-        return markdown
-    except ValueError as e:
-        # One repair retry
-        repair_prompt = f"""
+        # First attempt
+        markdown = llm.generate_text(system=SYSTEM_MODULE_WRITER, user=prompt, temperature=0.2).strip()
+        
+        # Validate and repair if needed
+        try:
+            validate_module_markdown(markdown)
+            logger.info(f"[write_module_markdown] Week {week} generated successfully")
+            return markdown
+        except ValueError as e:
+            logger.warning(f"[write_module_markdown] Week {week} validation failed, attempting repair: {str(e)}")
+            # One repair retry
+            repair_prompt = f"""
 {prompt}
 
 PREVIOUS ATTEMPT FAILED:
@@ -130,12 +139,17 @@ Invalid markdown:
 
 Return corrected markdown only. Fix the structure errors while preserving content quality.
 """.strip()
-        
-        repaired_markdown = llm.generate_text(system=SYSTEM_MODULE_WRITER, user=repair_prompt, temperature=0.1).strip()
-        
-        # Final validation
-        try:
-            validate_module_markdown(repaired_markdown)
-            return repaired_markdown
-        except ValueError as final_e:
-            raise RuntimeError(f"Module markdown validation failed after repair: {final_e}")
+            
+            repaired_markdown = llm.generate_text(system=SYSTEM_MODULE_WRITER, user=repair_prompt, temperature=0.1).strip()
+            
+            # Final validation
+            try:
+                validate_module_markdown(repaired_markdown)
+                logger.info(f"[write_module_markdown] Week {week} repaired successfully")
+                return repaired_markdown
+            except ValueError as final_e:
+                logger.error(f"[write_module_markdown] Week {week} repair failed: {str(final_e)}")
+                raise DocumentPortalException(f"Module markdown validation failed after repair for week {week}", final_e)
+    except Exception as e:
+        logger.error(f"[write_module_markdown] Failed to generate week {week}: {str(e)}")
+        raise DocumentPortalException(f"Failed to generate module markdown for week {week}", e)

@@ -1,45 +1,102 @@
 {% extends "base.html" %}
+{% block title %}My Courses · CourseCrafter{% endblock %}
 {% block content %}
 
-<h1>My saved courses</h1>
+<!-- Header Section -->
+<section style="margin-bottom: 32px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+      <h1 style="margin: 0 0 8px 0; font-size: 2rem;">My Saved Courses</h1>
+      <p style="color: var(--text-secondary); margin: 0;">View and manage your generated courses</p>
+    </div>
+    <a href="/dashboard" class="btn btn-secondary">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+      </svg>
+      Dashboard
+    </a>
+  </div>
+</section>
 
-{% if courses|length == 0 %}
-  <p>You don’t have any saved courses yet.</p>
-  <p><a href="/dashboard">Go to dashboard</a></p>
-{% else %}
-  {% for c in courses %}
-    <section style="margin: 16px 0; padding: 12px; border: 1px solid #333; border-radius: 8px;">
-      <h2 style="margin: 0 0 6px 0;">
-        <a href="/courses/{{ c.id }}">{{ c.title }}</a>
-      </h2>
-
-      {% if c.description %}
-        <div style="color:#666;">{{ c.description }}</div>
-      {% endif %}
-
-      <div style="margin-top: 8px;">
-        Status: <b>{{ c.status }}</b>
-        &nbsp;|&nbsp;
-        <a href="/courses/{{ c.id }}">Open</a>
-        &nbsp;|&nbsp;
-        <a href="/courses/{{ c.id }}/edit">Edit</a>
-        &nbsp;|&nbsp;
-
-        <form method="post" action="/courses/{{ c.id }}/generate" style="display:inline;">
-          <button type="submit">Generate content</button>
-        </form>
-
-        &nbsp;|&nbsp;
-
-        <form method="post"
-              action="/courses/{{ c.id }}/delete"
-              style="display:inline;"
-              onsubmit="return confirm('Delete this course? This cannot be undone.');">
-          <button type="submit">Delete</button>
-        </form>
+<!-- Courses Grid -->
+{% if courses|length > 0 %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 24px;">
+    {% for c in courses %}
+      <div class="card" style="padding: 24px; border-left: 4px solid var(--success);">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+          <div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.25rem;">
+              <a href="/courses/{{ c.id }}" style="color: inherit; text-decoration: none;">{{ c.title }}</a>
+            </h3>
+            {% if c.description %}
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0; line-height: 1.4;">{{ c.description }}</p>
+            {% endif %}
+          </div>
+          <span class="badge" style="background: var(--success);">{{ c.status }}</span>
+        </div>
+        
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 16px;">
+          Updated {{ c.updated_at.strftime('%b %d, %Y at %I:%M %p') }}
+        </div>
+        
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <a href="/courses/{{ c.id }}" class="btn btn-sm btn-secondary">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            Open
+          </a>
+          <a href="/courses/{{ c.id }}/edit" class="btn btn-sm btn-secondary">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            Edit
+          </a>
+          {% if c.status == 'outline_ready' %}
+            <form method="post" action="/generation/courses/{{ c.id }}/generate" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-primary">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Generate Content
+              </button>
+            </form>
+          {% endif %}
+          <form method="post" action="/courses/{{ c.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this course? This cannot be undone.');">
+            <button type="submit" class="btn btn-sm btn-danger">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Delete
+            </button>
+          </form>
+        </div>
       </div>
-    </section>
-  {% endfor %}
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="padding: 64px; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 24px; opacity: 0.3;">📚</div>
+    <h2 style="margin-bottom: 12px; font-size: 1.5rem;">No saved courses yet</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+      You don't have any saved courses yet. Create a roadmap first, then generate your course content.
+    </p>
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+      <a href="/dashboard" class="btn btn-primary">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+        </svg>
+        Go to Dashboard
+      </a>
+      <a href="/roadmaps/new" class="btn btn-secondary">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        Create Roadmap
+      </a>
+    </div>
+  </div>
 {% endif %}
 
 {% endblock %}

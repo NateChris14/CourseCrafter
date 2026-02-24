@@ -11,9 +11,11 @@ from app.db.models.user import User
 from app.db.models.roadmap import Roadmap
 from app.db.models.course import Course
 from app.db.models.generation_run import GenerationRun
-from app.jobs.tasks import queue_roadmap_generation, enqueue_job, get_queue_status, clear_pending_queue, clear_processing_queue, cancel_job_by_run_id
+from app.jobs.tasks import enqueue_job, get_queue_status, clear_pending_queue, clear_processing_queue, cancel_job_by_run_id, queue_roadmap_generation
+from app.logger import GLOBAL_LOGGER as logger
+from app.exceptions.custom_exception import DocumentPortalException
 
-router = APIRouter()
+router = APIRouter(prefix="/generation")
 
 
 @router.post("/roadmaps/{roadmap_id}/generate")

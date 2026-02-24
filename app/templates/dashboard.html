@@ -1,9 +1,108 @@
 {% extends "base.html" %}
 {% block title %}Dashboard · CourseCrafter{% endblock %}
 {% block content %}
-  <h1>Dashboard</h1>
-  <p>Logged in as <strong>{{ user.email }}</strong></p>
 
-  <p>Next: create a roadmap and generate a course.</p>
-  <a class="btn" href="/roadmaps/new">Create roadmap</a>
+<!-- Welcome Section -->
+<section class="hero-section fade-in" style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(99, 102, 241, 0.1) 100%); border-radius: var(--radius); margin-bottom: 48px;">
+  <div style="max-width: 800px; margin: 0 auto;">
+    <h1 style="font-size: 2.5rem; margin-bottom: 16px;">Welcome back, {{ user.email.split('@')[0] }}!</h1>
+    <p style="font-size: 1.125rem; color: var(--text-secondary); margin-bottom: 32px;">
+      Ready to create your next course? Start with a roadmap or continue with your existing projects.
+    </p>
+    <div class="flex gap-4" style="justify-content: center; flex-wrap: wrap;">
+      <a href="/roadmaps/new" class="btn btn-primary btn-lg">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+        </svg>
+        Create New Roadmap
+      </a>
+      <a href="/courses" class="btn btn-secondary btn-lg">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        View All Courses
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Overview -->
+<section style="margin-bottom: 48px;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+    <div class="card" style="text-align: center; padding: 24px;">
+      <div style="font-size: 2.5rem; font-weight: 700; color: var(--success); margin-bottom: 8px;">{{ courses|length }}</div>
+      <div style="color: var(--text-secondary); font-weight: 500;">Courses</div>
+    </div>
+    <div class="card" style="text-align: center; padding: 24px;">
+      <div style="font-size: 2.5rem; font-weight: 700; color: var(--warning); margin-bottom: 8px;">{{ courses|selectattr('modules')|list|length }}</div>
+      <div style="color: var(--text-secondary); font-weight: 500;">Modules Generated</div>
+    </div>
+  </div>
+</section>
+
+<!-- Recent Content -->
+<div style="margin-bottom: 48px;">
+  
+  <!-- Recent Courses -->
+  <section>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <h2 style="margin: 0;">Recent Courses</h2>
+      <a href="/courses" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    
+    {% if courses %}
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        {% for course in courses %}
+          <div class="card" style="padding: 20px; border-left: 4px solid var(--success);">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0 0 8px 0; font-size: 1.1rem;">{{ course.title }}</h3>
+                <div style="display: flex; gap: 12px; font-size: 0.875rem; color: var(--text-secondary);">
+                  <span>{{ course.level or 'N/A' }}</span>
+                  <span>•</span>
+                  <span>{{ course.duration_weeks or 'N/A' }} weeks</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+                  Updated {{ course.updated_at.strftime('%b %d, %Y') }}
+                </div>
+              </div>
+              <span class="badge" style="background: var(--success);">{{ course.status }}</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <a href="/courses/{{ course.id }}" class="btn btn-sm btn-secondary">View</a>
+              {% if course.status == 'outline_ready' %}
+                <form method="post" action="/generation/courses/{{ course.id }}/generate" style="display: inline;">
+                  <button type="submit" class="btn btn-sm btn-primary">Generate Modules</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card" style="padding: 32px; text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: 16px; opacity: 0.5;">📚</div>
+        <h3 style="margin-bottom: 12px;">No courses yet</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">Create a roadmap first, then generate your course</p>
+        <a href="/roadmaps/new" class="btn btn-primary">Create Roadmap</a>
+      </div>
+    {% endif %}
+  </section>
+  
+</div>
+
+<!-- Quick Actions -->
+<section style="text-align: center; padding: 32px; background: var(--bg-secondary); border-radius: var(--radius); border: 1px solid var(--border);">
+  <h2 style="margin-bottom: 16px;">Quick Actions</h2>
+  <p style="color: var(--text-secondary); margin-bottom: 24px;">Get started with these common tasks</p>
+  <div class="flex gap-3" style="justify-content: center; flex-wrap: wrap;">
+    <a href="/courses" class="btn btn-primary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+      </svg>
+      My Courses
+    </a>
+  </div>
+</section>
+
 {% endblock %}

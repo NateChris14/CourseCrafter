@@ -1,156 +1,262 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h1>{{ course.title }}</h1>
-{% if course.description %}<p>{{ course.description }}</p>{% endif %}
-
-<div style="margin: 12px 0;">
-  <a href="/courses/{{ course.id }}/edit">Edit</a>
+<!-- Course Header -->
+<div class="card mb-4 fade-in">
+  <div class="card-header">
+    <div class="flex items-center gap-4">
+      <div class="week-badge" style="width: 60px; height: 60px; font-size: 1.5rem;">
+        📚
+      </div>
+      <div>
+        <h1 style="margin: 0; font-size: 2rem;">{{ course.title }}</h1>
+        {% if course.description %}
+        <p class="text-secondary" style="margin: 4px 0 0 0;">{{ course.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <a href="/courses/{{ course.id }}/edit" class="btn btn-secondary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+      </svg>
+      Edit Course
+    </a>
+  </div>
 </div>
 
-<form method="post" action="/courses/{{ course.id }}/generate" style="margin: 12px 0;">
-  <label style="display:inline-block; margin-right: 12px;">
-    <input type="checkbox" name="overwrite" value="1">
-    Overwrite existing lessons
-  </label>
-  <button type="submit">Generate full course (Markdown)</button>
-</form>
+<!-- Generation Form -->
+{% if not run_id %}
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" action="/generation/courses/{{ course.id }}/generate" class="flex items-center gap-4" style="flex-wrap: wrap;">
+      <label class="checkbox-wrapper">
+        <input type="checkbox" name="overwrite" value="1">
+        <span>Overwrite existing lessons</span>
+      </label>
+      <button type="submit" class="btn btn-primary btn-lg">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+        </svg>
+        Generate Full Course
+      </button>
+    </form>
+  </div>
+</div>
+{% endif %}
 
+<!-- Generation Status -->
 {% if run_id %}
-  <section id="runBox" style="margin: 12px 0; padding: 12px; border: 1px solid #444; border-radius: 8px;">
-    <h3 style="margin: 0 0 8px 0;">Generation status</h3>
-    <div>Status: <b id="runStatus">Loading…</b></div>
-    <div>Progress: <span id="runProgress">0</span>%</div>
-    <div id="runMessage" style="margin-top: 6px; color: #bbb;"></div>
-    <div id="runError" style="margin-top: 6px; color: #ff6b6b;"></div>
-  </section>
+<div class="card mb-4" id="runBox">
+  <div class="card-header">
+    <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+      <span class="badge badge-running">●</span>
+      Generation in Progress
+    </h3>
+    <button class="btn btn-sm btn-secondary" onclick="window.location.reload()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      Refresh
+    </button>
+  </div>
+  <div class="card-body">
+    <div class="progress-wrapper">
+      <div class="flex justify-between mb-2">
+        <span id="runStatus" class="badge badge-running">Running</span>
+        <span class="text-secondary"><span id="runProgress">0</span>% Complete</span>
+      </div>
+      <div style="background: #e0e0e0; border-radius: 4px; height: 6px; overflow: hidden;">
+        <div id="progressFill" style="background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s;"></div>
+      </div>
+    </div>
+    <div id="runMessage" class="text-secondary mt-3"></div>
+    <div id="runError" class="alert alert-error hidden mt-3"></div>
+  </div>
 
   <script>
     (function () {
       const runId = "{{ run_id }}";
       const statusEl = document.getElementById("runStatus");
       const progressEl = document.getElementById("runProgress");
+      const progressFill = document.getElementById("progressFill");
       const messageEl = document.getElementById("runMessage");
       const errorEl = document.getElementById("runError");
 
-      async function poll() {
-        try {
-          const res = await fetch(`/runs/${runId}`, { cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
+      function updateLocalProgress(runData) {
+        if (!runData || runData.id !== runId) return;
 
-          statusEl.textContent = data.status || "";
-          progressEl.textContent = (data.progress ?? 0);
-          messageEl.textContent = data.message || "";
-          errorEl.textContent = data.error || "";
+        statusEl.textContent = runData.status || "Unknown";
+        statusEl.className = `badge badge-${runData.status === 'succeeded' ? 'success' : runData.status === 'failed' ? 'error' : 'running'}`;
+        const progress = runData.progress ?? 0;
+        progressEl.textContent = progress;
+        progressFill.style.width = `${progress}%`;
+        messageEl.textContent = runData.message || "";
 
-          if (data.status === "succeeded" || data.status === "failed") {
-            window.location.href = `/courses/{{ course.id }}`;
-            return;
-          }
-        } catch (e) {
-          messageEl.textContent = "Polling error. Retrying…";
+        if (runData.error) {
+          errorEl.textContent = runData.error;
+          errorEl.classList.remove("hidden");
         }
 
-        setTimeout(poll, 1200);
+        if (runData.status === "succeeded" || runData.status === "failed") {
+          setTimeout(() => window.location.href = `/courses/{{ course.id }}`, 1500);
+          return;
+        }
       }
 
-      poll();
+      // Make updateLocalProgress globally accessible so base.html can call it
+      window.updateLocalProgress = updateLocalProgress;
+
+      // Initial poll
+      async function initialPoll() {
+        try {
+          const res = await fetch(`/generation/runs/${runId}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          updateLocalProgress(data);
+          
+          // If still running, let global monitoring take over
+          if (data.status !== "succeeded" && data.status !== "failed") {
+            // Global monitoring will handle further updates
+          }
+        } catch (e) {
+          messageEl.textContent = "Connecting to server...";
+        }
+      }
+      
+      initialPoll();
     })();
   </script>
+</div>
 {% endif %}
 
+<!-- Course Modules -->
 {% for m in modules %}
-  <section style="margin: 16px 0; padding: 12px; border: 1px solid #333; border-radius: 8px;">
-    <h2>Week {{ m.week }} — {{ m.title }}</h2>
-
-    {% if m.outcomes and m.outcomes|length > 0 %}
-      <h3>Outcomes</h3>
-      <ul>
-        {% for o in m.outcomes %}
-          <li>{{ o }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-
+<div class="module-section fade-in">
+  <div class="module-header">
+    <div class="week-badge">{{ m.week }}</div>
+    <div style="flex: 1;">
+      <h2 style="margin: 0;">{{ m.title }}</h2>
+      <span class="text-sm text-secondary">Week {{ m.week }}</span>
+    </div>
     {% if m.content_html %}
-      <h3>Lesson</h3>
-      <div class="lesson">
-        {{ m.content_html }}
-      </div>
+    <button class="btn btn-sm btn-secondary" onclick="toggleWeek('week-{{ m.week }}')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+      Collapse
+    </button>
+    {% endif %}
+  </div>
 
-      {% if m.media_suggestions %}
-      <div class="media-overlay" style="margin-top: 20px; padding: 16px; background: #1a1a2e; border-radius: 8px; border: 1px solid #333;">
-        <h4 style="margin: 0 0 12px 0; color: #fff;">📺 Recommended Media</h4>
+  {% if m.outcomes and m.outcomes|length > 0 %}
+  <div class="mb-4">
+    <h4 class="text-secondary" style="font-size: 1rem; margin-bottom: 12px;">📋 Learning Outcomes</h4>
+    <div class="flex gap-2" style="flex-wrap: wrap;">
+      {% for o in m.outcomes %}
+      <span class="badge" style="background: rgba(99, 102, 241, 0.1); color: var(--primary-light);">{{ o }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
-        {% if m.media_suggestions.images %}
-        <div class="image-suggestions" style="margin-bottom: 16px;">
-          <h5 style="margin: 0 0 8px 0; color: #bbb; font-size: 0.9em;">Images</h5>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            {% for img in m.media_suggestions.images %}
-            <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" style="text-decoration: none; flex: 1; min-width: 200px; max-width: 300px;">
-              <div class="image-card" style="background: #2a2a3e; padding: 12px; border-radius: 6px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                <div style="width: 100%; height: 120px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 2em; margin-bottom: 8px;">
-                  �
-                </div>
-                <p style="margin: 0; font-size: 0.85em; color: #ddd;">{{ img.description }}</p>
-                <small style="color: #888;">Click to search: {{ img.search_keywords }}</small>
+  <div id="week-{{ m.week }}">
+    {% if m.content_html %}
+    <div class="lesson mb-4">
+      {{ m.content_html }}
+    </div>
+
+    {% if m.media_suggestions %}
+    <div class="media-overlay">
+      <h4>
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Recommended Media
+      </h4>
+
+      {% if m.media_suggestions.images %}
+      <div class="mb-4">
+        <h5 class="text-secondary" style="font-size: 0.9rem; margin-bottom: 12px;">📸 Suggested Images</h5>
+        <div class="flex gap-3" style="flex-wrap: wrap;">
+          {% for img in m.media_suggestions.images %}
+          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;">
+            <div class="card image-card" style="width: 100%; border: 1px solid var(--border);">
+              <div style="height: 140px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; border-bottom: 1px solid var(--border);">
+                🖼️
               </div>
-            </a>
-            {% endfor %}
-          </div>
+              <div style="padding: 12px;">
+                <p style="margin: 0; font-size: 0.85rem; color: var(--text-primary);">{{ img.description }}</p>
+                <small style="color: var(--text-muted);">{{ img.search_keywords }}</small>
+              </div>
+            </div>
+          </a>
+          {% endfor %}
         </div>
-        {% endif %}
-
-        {% if m.media_suggestions.videos %}
-        <div class="video-suggestions">
-          <h5 style="margin: 0 0 8px 0; color: #bbb; font-size: 0.9em;">Videos</h5>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-            {% for video in m.media_suggestions.videos %}
-              {% if video.youtube_url %}
-                {% set video_id = video.youtube_url.split('v=')[1] if 'v=' in video.youtube_url else video.youtube_url.split('/')[-1] %}
-                {% set embed_url = 'https://www.youtube.com/embed/' + video_id %}
-                <div class="video-card" style="flex: 1; min-width: 280px; max-width: 400px; background: #2a2a3e; padding: 12px; border-radius: 6px;">
-                  <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 4px; margin-bottom: 8px;">
-                    <iframe
-                      style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
-                      src="{{ embed_url }}"
-                      title="{{ video.title }}"
-                      frameborder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowfullscreen>
-                    </iframe>
-                  </div>
-                  <p style="margin: 0; font-size: 0.9em; color: #ddd; font-weight: 600;">{{ video.title }}</p>
-                  {% if video.search_keywords %}
-                  <small style="color: #888;">Search: {{ video.search_keywords }}</small>
-                  {% endif %}
-                </div>
-              {% else %}
-                <a href="https://www.youtube.com/results?search_query={{ video.search_keywords | urlencode if video.search_keywords else video.title | urlencode }}" target="_blank" style="text-decoration: none; flex: 1; min-width: 280px; max-width: 400px;">
-                  <div class="video-card" style="background: #2a2a3e; padding: 12px; border-radius: 6px; transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                    <div style="width: 100%; height: 150px; background: linear-gradient(135deg, #e53935 0%, #b71c1c 100%); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 3em; margin-bottom: 8px;">
-                      ▶️
-                    </div>
-                    <p style="margin: 0; font-size: 0.9em; color: #ddd; font-weight: 600;">{{ video.title }}</p>
-                    {% if video.search_keywords %}
-                    <small style="color: #888;">Click to search: {{ video.search_keywords }}</small>
-                    {% else %}
-                    <small style="color: #888;">Click to search on YouTube</small>
-                    {% endif %}
-                  </div>
-                </a>
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
       </div>
       {% endif %}
-    {% else %}
-      <p><i>Lesson content not generated yet.</i></p>
+
+      {% if m.media_suggestions.videos %}
+      <div>
+        <h5 class="text-secondary" style="font-size: 0.9rem; margin-bottom: 12px;">🎥 Suggested Videos</h5>
+        <div class="flex gap-3" style="flex-wrap: wrap;">
+          {% for video in m.media_suggestions.videos %}
+          {% if video.youtube_url %}
+          {% set video_id = video.youtube_url.split('v=')[1] if 'v=' in video.youtube_url else video.youtube_url.split('/')[-1] %}
+          {% set embed_url = 'https://www.youtube.com/embed/' + video_id %}
+          <div class="card video-card" style="flex: 1; min-width: 300px; max-width: 450px; border: 1px solid var(--border);">
+            <div style="position: relative; padding-bottom: 56.25%; border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-tertiary);">
+              <iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; border-radius: var(--radius-sm);"
+                src="{{ embed_url }}" title="{{ video.title }}" allowfullscreen>
+              </iframe>
+            </div>
+            <div style="padding: 12px; background: var(--bg-card);">
+              <p style="margin: 0; font-weight: 600; color: var(--text-primary);">{{ video.title }}</p>
+              {% if video.search_keywords %}
+              <small style="color: var(--text-muted);">{{ video.search_keywords }}</small>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <a href="https://www.youtube.com/results?search_query={{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 300px; max-width: 450px; padding: 0; overflow: hidden;">
+            <div class="card" style="width: 100%; border: 1px solid var(--border);">
+              <div style="height: 160px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 4rem; border-bottom: 1px solid var(--border);">
+                ▶️
+              </div>
+              <div style="padding: 12px; background: var(--bg-card);">
+                <p style="margin: 0; font-weight: 600; color: var(--text-primary);">{{ video.title }}</p>
+                <small style="color: var(--text-muted);">
+                  {% if video.search_keywords %}{{ video.search_keywords }}{% else %}Search on YouTube{% endif %}
+                </small>
+              </div>
+            </div>
+          </a>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
-  </section>
+    {% else %}
+    <div class="text-center py-4">
+      <div style="font-size: 4rem; margin-bottom: 16px;">📝</div>
+      <p class="text-secondary">Lesson content not generated yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endfor %}
+
+<script>
+function toggleWeek(id) {
+  const el = document.getElementById(id);
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+</script>
 
 {% endblock %}

@@ -10,3 +10,6 @@ wheels/
 .venv
 # Env variables
 .env
+
+# Logs
+logs

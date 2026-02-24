@@ -3,49 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <title>{% block title %}CourseCrafter{% endblock %}</title>
-    <link rel="stylesheet" href="/static/app.css" />
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
-    <header class="topbar">
-      <a href="/" class="brand">CourseCrafter</a>
-      <nav>
-        {% if user %}
-          <a href="/courses">My Courses</a>
-          <div id="genPanel" style="display:inline-block; position:relative; margin-right:8px;">
-            <span id="genBadge" style="cursor:pointer; padding:4px 8px; background:#e0e0e0; border-radius:4px; font-size:0.85em; display:none;">⚡ <span id="genCount">0</span></span>
-            <div id="genDetails" style="display:none; position:absolute; top:100%; right:0; background:white; border:1px solid #ccc; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:320px; max-width:400px; max-height:400px; overflow-y:auto; z-index:1000; padding:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
-                <h4 style="margin:0;">Generating...</h4>
-                <button onclick="cancelAllGenerations()" style="font-size:0.75em; padding:4px 8px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel All</button>
-              </div>
-              <div id="genList"></div>
-            </div>
-          </div>
-          <div id="queuePanel" style="display:inline-block; position:relative;">
-            <span id="queueBadge" style="cursor:pointer; padding:4px 8px; background:#e0e0e0; border-radius:4px; font-size:0.85em;">Queue: <span id="queueCount">0</span></span>
-            <div id="queueDetails" style="display:none; position:absolute; top:100%; right:0; background:white; border:1px solid #ccc; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:360px; max-width:450px; max-height:500px; overflow-y:auto; z-index:1000; padding:12px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">
-                <h4 style="margin:0;">Active Jobs</h4>
-                <div>
-                  <button onclick="clearPending()" id="clearPendingBtn" style="font-size:0.75em; padding:4px 8px; margin-right:4px; background:#ff9800; color:white; border:none; border-radius:4px; cursor:pointer;">Clear Pending</button>
-                  <button onclick="clearAll()" id="clearAllBtn" style="font-size:0.75em; padding:4px 8px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer;">Stop All</button>
+    <nav class="navbar">
+      <div class="container navbar-content">
+        <a href="{% if user %}/dashboard{% else %}/{% endif %}" class="navbar-brand">CourseCrafter</a>
+        <div class="navbar-nav">
+          {% if user %}
+            <a href="/courses" class="btn btn-secondary btn-sm">My Courses</a>
+            <div id="genPanel" style="position:relative;">
+              <span id="genBadge" class="btn btn-icon" style="display:none; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">⚡ <span id="genCount">0</span></span>
+              <div id="genDetails" style="display:none; position:absolute; top:100%; right:0; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:320px; max-width:400px; max-height:400px; overflow-y:auto; z-index:1000; padding:16px; margin-top:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+                  <h4 style="margin:0;">Generating...</h4>
+                  <button onclick="cancelAllGenerations()" class="btn btn-sm btn-danger">Cancel All</button>
                 </div>
+                <div id="genList"></div>
               </div>
-              <div id="processingList"></div>
-              <div id="pendingList" style="margin-top:12px;"></div>
             </div>
-          </div>
-          <form method="post" action="/logout" style="display:inline;">
-            <button type="submit">Logout</button>
-          </form>
-        {% else %}
-          <a href="/login">Login</a>
-          <a href="/register">Register</a>
-        {% endif %}
-      </nav>
-    </header>
+            <div id="queuePanel" style="position:relative;">
+              <span id="queueBadge" class="btn btn-secondary btn-sm">Queue: <span id="queueCount">0</span></span>
+              <div id="queueDetails" style="display:none; position:absolute; top:100%; right:0; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:360px; max-width:450px; max-height:500px; overflow-y:auto; z-index:1000; padding:16px; margin-top:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
+                  <h4 style="margin:0;">Active Jobs</h4>
+                  <div class="flex gap-2">
+                    <button onclick="clearPending()" id="clearPendingBtn" class="btn btn-sm" style="background:var(--warning); color:white;">Clear Pending</button>
+                    <button onclick="clearAll()" id="clearAllBtn" class="btn btn-sm btn-danger">Stop All</button>
+                  </div>
+                </div>
+                <div id="processingList"></div>
+                <div id="pendingList" style="margin-top:16px;"></div>
+              </div>
+            </div>
+            <form method="post" action="/logout" style="display:inline;">
+              <button type="submit" class="btn btn-secondary btn-sm">Logout</button>
+            </form>
+          {% else %}
+            <a href="/login" class="btn btn-secondary btn-sm">Login</a>
+            <a href="/register" class="btn btn-primary btn-sm">Register</a>
+          {% endif %}
+        </div>
+      </div>
+    </nav>
 
-    <main class="container">
+    <main class="container" style="padding-top: 24px;">
       {% block content %}{% endblock %}
     </main>
 
@@ -100,7 +104,7 @@
       async function cancelJob(runId) {
         if (!confirm('Cancel this job?')) return;
         try {
-          const res = await fetch(`/runs/${runId}/cancel`, { method: 'POST' });
+          const res = await fetch(`/generation/runs/${runId}/cancel`, { method: 'POST' });
           const data = await res.json();
           if (data.ok) {
             updateQueueStatus();
@@ -115,7 +119,7 @@
       async function clearPending() {
         if (!confirm('Clear all pending jobs?')) return;
         try {
-          const res = await fetch('/queue/clear-pending', { method: 'POST' });
+          const res = await fetch('/generation/queue/clear-pending', { method: 'POST' });
           const data = await res.json();
           if (data.ok) {
             updateQueueStatus();
@@ -128,7 +132,7 @@
       async function clearAll() {
         if (!confirm('Stop ALL jobs? This will cancel both pending and currently processing jobs.')) return;
         try {
-          const res = await fetch('/queue/clear-all', { method: 'POST' });
+          const res = await fetch('/generation/queue/clear-all', { method: 'POST' });
           const data = await res.json();
           if (data.ok) {
             updateQueueStatus();
@@ -140,7 +144,7 @@
 
       async function updateQueueStatus() {
         try {
-          const res = await fetch('/queue/status');
+          const res = await fetch('/generation/queue/status');
           const data = await res.json();
 
           const pendingCount = data.pending_count || 0;
@@ -232,7 +236,7 @@
       async function cancelGeneration(runId) {
         if (!confirm('Cancel this generation?')) return;
         try {
-          const res = await fetch(`/runs/${runId}/cancel`, { method: 'POST' });
+          const res = await fetch(`/generation/runs/${runId}/cancel`, { method: 'POST' });
           const data = await res.json();
           if (data.ok) {
             updateGenStatus();
@@ -245,10 +249,10 @@
       async function cancelAllGenerations() {
         if (!confirm('Cancel all active generations?')) return;
         try {
-          const res = await fetch('/runs');
+          const res = await fetch('/generation/runs');
           const runs = await res.json();
           for (const run of runs) {
-            await fetch(`/runs/${run.id}/cancel`, { method: 'POST' });
+            await fetch(`/generation/runs/${run.id}/cancel`, { method: 'POST' });
           }
           updateGenStatus();
         } catch (e) {
@@ -258,7 +262,7 @@
 
       async function updateGenStatus() {
         try {
-          const res = await fetch('/runs');
+          const res = await fetch('/generation/runs');
           const runs = await res.json();
           const activeRuns = runs.filter(r => r.status === 'queued' || r.status === 'processing');
 
@@ -283,6 +287,18 @@
               genList.innerHTML = activeRuns.map(r => createGenItem(r)).join('');
             } else {
               genList.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">No active generations</div>';
+            }
+          }
+
+          // Update local progress if page has a function for it
+          if (typeof window.updateLocalProgress === 'function') {
+            const params = new URLSearchParams(window.location.search);
+            const currentRunId = params.get('run');
+            if (currentRunId) {
+              const currentRun = runs.find(r => r.id === currentRunId);
+              if (currentRun) {
+                window.updateLocalProgress(currentRun);
+              }
             }
           }
         } catch (e) {

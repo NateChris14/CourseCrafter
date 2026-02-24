@@ -19,6 +19,8 @@ from app.db.models.course import Course
 from app.db.models.course_module import CourseModule
 from app.db.models.generation_run import GenerationRun
 from app.jobs.tasks import enqueue_job
+from app.logger import GLOBAL_LOGGER as logger
+from app.exceptions.custom_exception import DocumentPortalException
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/courses")

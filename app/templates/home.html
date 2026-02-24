@@ -1,6 +1,210 @@
 {% extends "base.html" %}
+{% block title %}CourseCrafter - AI-Powered Course Creation{% endblock %}
 {% block content %}
-  <h1>CourseCrafter</h1>
-  <p>Foundation is running.</p>
-  <p><a href="/dashboard">Go to dashboard</a></p>
+
+<!-- Hero Section -->
+<section class="hero-section fade-in" style="text-align: center; padding: 80px 20px; background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(99, 102, 241, 0.1) 100%); border-radius: var(--radius); margin-bottom: 48px;">
+  <div style="max-width: 800px; margin: 0 auto;">
+    <div style="font-size: 4rem; margin-bottom: 24px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">CC</div>
+    <h1 style="font-size: 3.5rem; margin-bottom: 16px;">Create Courses with AI</h1>
+    <p style="font-size: 1.25rem; color: var(--text-secondary); margin-bottom: 32px; line-height: 1.6;">
+      Transform your expertise into comprehensive, structured courses in minutes.<br>
+      AI-powered curriculum design, lesson generation, and media recommendations.
+    </p>
+    <div class="flex gap-4" style="justify-content: center; flex-wrap: wrap;">
+      {% if user %}
+        <a href="/dashboard" class="btn btn-primary btn-lg">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+          </svg>
+          Go to Dashboard
+        </a>
+        <a href="/courses" class="btn btn-secondary btn-lg">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+          </svg>
+          My Courses
+        </a>
+      {% else %}
+        <a href="/register" class="btn btn-primary btn-lg">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+          </svg>
+          Get Started Free
+        </a>
+        <a href="/login" class="btn btn-secondary btn-lg">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+          </svg>
+          Sign In
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section style="margin-bottom: 64px;">
+  <h2 style="text-align: center; margin-bottom: 48px; font-size: 2rem;">How It Works</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+    
+    <!-- Feature 1 -->
+    <div class="card" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2rem;">
+        📋
+      </div>
+      <h3 style="margin-bottom: 12px;">1. Define Your Course</h3>
+      <p style="color: var(--text-secondary);">Enter your course topic, target audience level, weekly hours, and duration. Our AI creates a structured roadmap.</p>
+    </div>
+
+    <!-- Feature 2 -->
+    <div class="card" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: linear-gradient(135deg, var(--success) 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2rem;">
+        📚
+      </div>
+      <h3 style="margin-bottom: 12px;">2. AI Generates Content</h3>
+      <p style="color: var(--text-secondary);">Each week gets detailed lessons with key concepts, worked examples, practice exercises, and common mistakes.</p>
+    </div>
+
+    <!-- Feature 3 -->
+    <div class="card" style="text-align: center; padding: 32px;">
+      <div style="width: 64px; height: 64px; background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2rem;">
+        🎯
+      </div>
+      <h3 style="margin-bottom: 12px;">3. Media & Resources</h3>
+      <p style="color: var(--text-secondary);">Get AI-curated image suggestions, YouTube videos, and additional resources for each lesson.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- Key Features Grid -->
+<section style="margin-bottom: 64px;">
+  <h2 style="text-align: center; margin-bottom: 48px; font-size: 2rem;">Powerful Features</h2>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+    
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">⚡</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Lightning Fast</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Generate complete courses in minutes</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">�</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Structured Content</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">7-section lesson structure with validation</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">�</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Code Examples</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Python code for programming topics</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">🎬</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Media Suggestions</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">AI-curated images and videos</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">�</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Auto-Repair</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Content validation and automatic fixes</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3" style="padding: 16px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <span style="font-size: 1.5rem;">🚀</span>
+      <div>
+        <h4 style="margin: 0; font-size: 1rem;">Queue System</h4>
+        <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">Background processing with progress</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Course Structure Preview -->
+<section style="margin-bottom: 64px;">
+  <h2 style="text-align: center; margin-bottom: 48px; font-size: 2rem;">What CourseCrafter Generates</h2>
+  <div style="max-width: 900px; margin: 0 auto;">
+    <div class="card" style="padding: 32px;">
+      <h3 style="margin-bottom: 24px; color: var(--primary-light);">Complete Course Structure</h3>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-bottom: 32px;">
+        <div>
+          <h4 style="margin-bottom: 12px; font-size: 1.1rem;">📋 Course Roadmap</h4>
+          <ul style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+            <li>4-52 week curriculum</li>
+            <li>Weekly learning outcomes</li>
+            <li>Progressive skill building</li>
+            <li>Time-based structure</li>
+          </ul>
+        </div>
+        
+        <div>
+          <h4 style="margin-bottom: 12px; font-size: 1.1rem;">📝 Weekly Lessons</h4>
+          <ul style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+            <li>Overview & Key Concepts</li>
+            <li>Worked Examples (with code)</li>
+            <li>3 Practice Exercises</li>
+            <li>Common Mistakes & Resources</li>
+          </ul>
+        </div>
+        
+        <div>
+          <h4 style="margin-bottom: 12px; font-size: 1.1rem;">🎯 Enhanced Learning</h4>
+          <ul style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+            <li>2-3 Image suggestions</li>
+            <li>1-2 YouTube videos</li>
+            <li>Additional resources</li>
+            <li>Search keywords</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div style="background: var(--bg-tertiary); padding: 20px; border-radius: var(--radius-sm); border-left: 4px solid var(--primary);">
+        <p style="margin: 0; color: var(--text-secondary); font-style: italic;">
+          "Each lesson follows a validated 7-section structure with automatic repair for consistent, high-quality content."
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section style="text-align: center; padding: 64px 32px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(79, 70, 229, 0.05) 100%); border-radius: var(--radius); border: 1px solid rgba(99, 102, 241, 0.2);">
+  <h2 style="margin-bottom: 16px; font-size: 2rem;">Ready to Create Your First Course?</h2>
+  <p style="color: var(--text-secondary); margin-bottom: 32px; font-size: 1.125rem;">
+    Transform your expertise into structured, engaging courses with AI-powered content generation.
+  </p>
+  <div class="flex gap-4" style="justify-content: center; flex-wrap: wrap;">
+    {% if user %}
+      <a href="/dashboard" class="btn btn-primary btn-lg">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+        </svg>
+        Start Creating
+      </a>
+    {% else %}
+      <a href="/register" class="btn btn-primary btn-lg">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+        </svg>
+        Get Started Free
+      </a>
+    {% endif %}
+  </div>
+</section>
+
 {% endblock %}

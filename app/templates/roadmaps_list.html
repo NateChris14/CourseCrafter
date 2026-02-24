@@ -1,13 +1,92 @@
 {% extends "base.html" %}
+{% block title %}My Roadmaps · CourseCrafter{% endblock %}
 {% block content %}
-<h1>Your roadmaps</h1>
-<p><a href="/roadmaps/new">Create new</a></p>
 
-<ul>
-  {% for r in roadmaps %}
-    <li><a href="/roadmaps/{{ r.id }}">{{ r.title }}</a> — {{ r.field }} ({{ r.level }})</li>
-  {% else %}
-    <li>No roadmaps yet.</li>
-  {% endfor %}
-</ul>
+<!-- Header Section -->
+<section style="margin-bottom: 32px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+      <h1 style="margin: 0 0 8px 0; font-size: 2rem;">My Roadmaps</h1>
+      <p style="color: var(--text-secondary); margin: 0;">Manage your course roadmaps and generate outlines</p>
+    </div>
+    <a href="/roadmaps/new" class="btn btn-primary btn-lg">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      Create New Roadmap
+    </a>
+  </div>
+</section>
+
+<!-- Roadmaps Grid -->
+{% if roadmaps %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 24px;">
+    {% for r in roadmaps %}
+      <div class="card" style="padding: 24px; border-left: 4px solid var(--primary);">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+          <div>
+            <h3 style="margin: 0 0 8px 0; font-size: 1.25rem;">{{ r.title or r.field }}</h3>
+            <div style="display: flex; gap: 12px; font-size: 0.875rem; color: var(--text-secondary);">
+              <span>{{ r.level }}</span>
+              <span>•</span>
+              <span>{{ r.duration_weeks }} weeks</span>
+              <span>•</span>
+              <span>{{ r.weekly_hours }}h/week</span>
+            </div>
+          </div>
+          <span class="badge" style="background: var(--primary-light);">{{ r.status or 'draft' }}</span>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 0;">{{ r.field }}</p>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
+            Created {{ r.created_at.strftime('%b %d, %Y at %I:%M %p') }}
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <a href="/roadmaps/{{ r.id }}" class="btn btn-sm btn-secondary">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            View
+          </a>
+          {% if not r.outline_json %}
+            <form method="post" action="/generation/roadmaps/{{ r.id }}/generate" style="display: inline;">
+              <button type="submit" class="btn btn-sm btn-primary">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Generate Outline
+              </button>
+            </form>
+          {% else %}
+            <a href="/courses/new?roadmap_id={{ r.id }}" class="btn btn-sm btn-success">
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              Create Course
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card" style="padding: 64px; text-align: center;">
+    <div style="font-size: 4rem; margin-bottom: 24px; opacity: 0.3;">📋</div>
+    <h2 style="margin-bottom: 12px; font-size: 1.5rem;">No roadmaps yet</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 32px; max-width: 400px; margin-left: auto; margin-right: auto;">
+      Create your first roadmap to start building structured courses with AI-powered content generation.
+    </p>
+    <a href="/roadmaps/new" class="btn btn-primary btn-lg">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      Create Your First Roadmap
+    </a>
+  </div>
+{% endif %}
+
 {% endblock %}

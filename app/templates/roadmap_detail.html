@@ -3,23 +3,44 @@
 <h1>{{ roadmap.title }}</h1>
 <p><b>Field:</b> {{ roadmap.field }} | <b>Level:</b> {{ roadmap.level }} | <b>Weeks:</b> {{ roadmap.duration_weeks }}</p>
 
-<form method="post" action="/roadmaps/{{ roadmap.id }}/generate">
-  <button type="submit">Generate outline</button>
+<form method="post" action="/generation/roadmaps/{{ roadmap.id }}/generate">
+  <button type="submit" class="btn btn-primary">
+    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+    </svg>
+    Generate Outline
+  </button>
 </form>
 
-<div id="runBox" style="margin-top:16px; display:none;">
-  <p><b>Status:</b> <span id="status"></span></p>
-  <p><b>Progress:</b> <span id="progress"></span>%</p>
-  <p id="message"></p>
+<div id="runBox" class="card" style="margin-top:24px; display:none;">
+  <div style="padding: 20px;">
+    <h3 style="margin: 0 0 16px 0;">Generation Progress</h3>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+      <div>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">Status:</span>
+        <span id="status" style="margin-left: 8px; font-weight: 600;"></span>
+      </div>
+      <div>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">Progress:</span>
+        <span id="progress" style="margin-left: 8px; font-weight: 600;"></span>%
+      </div>
+    </div>
+    
+    <div style="background: #e0e0e0; border-radius: 4px; height: 6px; margin-bottom: 16px; overflow: hidden;">
+      <div id="progressBar" style="background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s;"></div>
+    </div>
+    
+    <div id="message" style="color: var(--text-secondary); margin-bottom: 16px;"></div>
+    <div id="actions" style="margin: 16px 0;"></div>
 
-  <p id="actions" style="margin: 10px 0;"></p>
+    <div id="outline"></div>
 
-  <div id="outline"></div>
-
-  <details style="margin-top: 12px;">
-    <summary>Show raw JSON</summary>
-    <pre id="result" style="white-space:pre-wrap;"></pre>
-  </details>
+    <details style="margin-top: 16px;">
+      <summary style="cursor: pointer; color: var(--text-secondary);">Show raw JSON</summary>
+      <pre id="result" style="background: var(--bg-tertiary); padding: 12px; border-radius: var(--radius-sm); margin-top: 8px; white-space:pre-wrap; font-size: 0.9rem;"></pre>
+    </details>
+  </div>
 </div>
 
 <script>
@@ -28,12 +49,13 @@
   const box = document.getElementById("runBox");
   const actions = document.getElementById("actions");
   const outlineDiv = document.getElementById("outline");
+  const progressBar = document.getElementById("progressBar");
 
   function renderOutline(outline) {
     outlineDiv.innerHTML = "";
     const weeks = outline?.weeks || [];
     if (!weeks.length) {
-      outlineDiv.innerHTML = "<p><i>No outline weeks found.</i></p>";
+      outlineDiv.innerHTML = "<p style='color: var(--text-secondary);'><i>No outline weeks found.</i></p>";
       return;
     }
 
@@ -41,16 +63,17 @@
 
     for (const w of weeks) {
       const section = document.createElement("section");
+      section.className = "card";
       section.style.margin = "16px 0";
-      section.style.padding = "12px";
-      section.style.border = "1px solid #333";
-      section.style.borderRadius = "8px";
+      section.style.padding = "20px";
 
       const h2 = document.createElement("h2");
       h2.textContent = `Week ${w.week} — ${w.title}`;
+      h2.style.margin = "0 0 12px 0";
       section.appendChild(h2);
 
       const ul = document.createElement("ul");
+      ul.style.margin = "0";
       for (const o of (w.outcomes || [])) {
         const li = document.createElement("li");
         li.textContent = o;
@@ -62,49 +85,73 @@
     }
   }
 
-  if (runId) {
-    box.style.display = "block";
+  // Listen for global generation updates
+  function updateLocalProgress(runData) {
+    if (!runData || runData.id !== runId) return;
+    
+    document.getElementById("status").textContent = runData.status;
+    document.getElementById("progress").textContent = runData.progress ?? 0;
+    progressBar.style.width = `${runData.progress ?? 0}%`;
+    document.getElementById("message").textContent = runData.message ?? "";
 
-    async function poll() {
-      const res = await fetch(`/runs/${runId}`);
-      const data = await res.json();
+    if (runData.status === "succeeded") {
+      actions.innerHTML = "";
 
-      document.getElementById("status").textContent = data.status;
-      document.getElementById("progress").textContent = data.progress ?? 0;
-      document.getElementById("message").textContent = data.message ?? "";
-
-      if (data.status === "succeeded") {
-        actions.innerHTML = "";
-
-        if (data.course_id) {
-          const link = document.createElement("a");
-          link.href = `/courses/${data.course_id}`;
-          link.textContent = "View course";
-          actions.appendChild(link);
-        }
-
-        document.getElementById("result").textContent = data.result_json || "";
-
-        try {
-          const outline = JSON.parse(data.result_json);
-          renderOutline(outline);
-        } catch (e) {
-          outlineDiv.innerHTML = "<p class='error'><i>Could not parse outline JSON.</i></p>";
-        }
-        return;
+      if (runData.course_id) {
+        const link = document.createElement("a");
+        link.href = `/courses/${runData.course_id}`;
+        link.className = "btn btn-primary";
+        link.innerHTML = `
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+          View Course
+        `;
+        actions.appendChild(link);
       }
 
-      if (data.status === "failed") {
-        outlineDiv.innerHTML = "";
-        document.getElementById("result").textContent = data.error || "Failed";
-        actions.innerHTML = "";
-        return;
-      }
+      document.getElementById("result").textContent = runData.result_json || "";
 
-      setTimeout(poll, 1500);
+      try {
+        const outline = JSON.parse(runData.result_json);
+        renderOutline(outline);
+      } catch (e) {
+        outlineDiv.innerHTML = "<p style='color: var(--error);'><i>Could not parse outline JSON.</i></p>";
+      }
+      return;
     }
 
-    poll();
+    if (runData.status === "failed") {
+      outlineDiv.innerHTML = "";
+      document.getElementById("result").textContent = runData.error || "Failed";
+      actions.innerHTML = "";
+      return;
+    }
+  }
+
+  // Make updateLocalProgress globally accessible so base.html can call it
+  window.updateLocalProgress = updateLocalProgress;
+
+  if (runId) {
+    box.style.display = "block";
+    
+    // Initial poll
+    async function initialPoll() {
+      try {
+        const res = await fetch(`/generation/runs/${runId}`);
+        const data = await res.json();
+        updateLocalProgress(data);
+        
+        // If still running, let global monitoring take over
+        if (data.status !== "succeeded" && data.status !== "failed") {
+          // Global monitoring will handle further updates
+        }
+      } catch (e) {
+        console.error("Failed to poll run status:", e);
+      }
+    }
+    
+    initialPoll();
   }
 </script>
 {% endblock %}
