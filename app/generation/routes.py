@@ -156,6 +156,7 @@ def get_user_active_runs(
         .order_by(GenerationRun.created_at.desc())
         .all()
     )
+    
     return compress_response([
         {
             "id": str(run.id),

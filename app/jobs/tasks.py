@@ -67,30 +67,26 @@ def get_queue_status() -> Dict[str, Any]:
         try:
             task = json.loads(item)
             pending_tasks.append({
-                "task_id": task.get("task_id"),
-                "type": task.get("type"),
-                "run_id": task.get("run_id"),
-                "course_id": task.get("course_id"),
+                "task": task, 
+                "run_status": "queued",
                 "attempt": task.get("attempt", 0),
                 "timestamp": task.get("timestamp"),
             })
-        except Exception:
-            pass
+        except json.JSONDecodeError:
+            continue
 
     processing_tasks = []
     for item in processing:
         try:
             task = json.loads(item)
             processing_tasks.append({
-                "task_id": task.get("task_id"),
-                "type": task.get("type"),
-                "run_id": task.get("run_id"),
-                "course_id": task.get("course_id"),
+                "task": task, 
+                "run_status": "processing",
                 "attempt": task.get("attempt", 0),
                 "timestamp": task.get("timestamp"),
             })
-        except Exception:
-            pass
+        except json.JSONDecodeError:
+            continue
 
     return {
         "pending_count": len(pending_tasks),
@@ -368,7 +364,7 @@ def process_roadmap_generation_queue():
     logger.info(f"[worker] Starting loop. pending={PENDING_Q} processing={PROCESSING_Q}")
 
     while True:
-        task_raw = None
+        task_raw = None  # Initialize before try block
         try:
             task_raw = redis_client.brpoplpush(PENDING_Q, PROCESSING_Q, timeout=30)
             if not task_raw:
@@ -408,40 +404,33 @@ def process_roadmap_generation_queue():
 
         except Exception as e:
             logger.error(f"[worker] Error processing task: {str(e)}")
+            
+            # If we have a task_raw, remove it from processing queue
+            if task_raw:
+                try:
+                    task = json.loads(task_raw)
+                    run_id = task.get("run_id")
+                    attempt = int(task.get("attempt", 0)) + 1
+                    task["attempt"] = attempt
 
-            if not task_raw:
-                continue
+                    logger.warning(f"[worker] Retrying task. run_id={run_id} attempt={attempt}/{MAX_RETRIES} error={type(e).__name__}: {e}")
 
-            try:
-                task = json.loads(task_raw)
-            except Exception:
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
-                continue
+                    if run_id:
+                        update_run(
+                            run_id,
+                            status="running",
+                            progress=1,  # Reset progress on retry
+                            message=f"Retry {attempt}/{MAX_RETRIES} after error: {type(e).__name__}",
+                        )
 
-            run_id = task.get("run_id")
-            attempt = int(task.get("attempt", 0)) + 1
-            task["attempt"] = attempt
-
-            logger.warning(f"[worker] Retrying task. run_id={run_id} attempt={attempt}/{MAX_RETRIES} error={type(e).__name__}: {e}")
-
-            if run_id:
-                update_run(
-                    run_id,
-                    status="running",
-                    progress=1,  # Reset progress on retry
-                    message=f"Retry {attempt}/{MAX_RETRIES} after error: {type(e).__name__}",
-                )
-
-            if attempt <= MAX_RETRIES:
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
-                redis_client.lpush(PENDING_Q, json.dumps(task))
+                    if attempt <= MAX_RETRIES:
+                        redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                        redis_client.lpush(PENDING_Q, json.dumps(task))
+                    else:
+                        # Max retries exceeded, mark as failed
+                        redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                        update_run(run_id, status="failed", error=f"Max retries ({MAX_RETRIES}) exceeded", finished=True)
+                except json.JSONDecodeError:
+                    redis_client.lrem(PROCESSING_Q, 1, task_raw)
             else:
-                logger.error(f"[worker] Max retries exceeded for run_id={run_id}")
-                if run_id:
-                    update_run(
-                        run_id,
-                        status="failed",
-                        error=f"Retries exhausted: {type(e).__name__}: {e}",
-                        finished=True,
-                    )
-                redis_client.lrem(PROCESSING_Q, 1, task_raw)
+                logger.error(f"[worker] Max retries exceeded for unknown task")
