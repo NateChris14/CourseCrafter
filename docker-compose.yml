@@ -22,9 +22,13 @@ services:
       DATABASE_URL: postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter
       REDIS_URL: redis://redis:6379/0
       ENV: dev
-      SESSION_SECRET: change-me
+      SESSION_SECRET: ${session_secret}
       OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
       OLLAMA_MODEL: llama3.1
+      LLM_PROVIDER: groq
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_BASE_URL: https://api.groq.com/openai/v1
+      GROQ_MODEL: llama-3.1-8b-instant
     ports:
       - "8080:8080"
     volumes:
@@ -40,9 +44,13 @@ services:
       DATABASE_URL: postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter
       REDIS_URL: redis://redis:6379/0
       ENV: dev
-      SESSION_SECRET: change-me
+      SESSION_SECRET: ${session_secret}
       OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
       OLLAMA_MODEL: llama3.1
+      LLM_PROVIDER: groq
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_BASE_URL: https://api.groq.com/openai/v1
+      GROQ_MODEL: llama-3.1-8b-instant
     volumes:
       - .:/app
     restart: unless-stopped

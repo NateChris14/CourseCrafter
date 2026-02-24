@@ -190,8 +190,8 @@
         }
       }
 
-      // Update every 2 seconds for smoother progress
-      setInterval(updateQueueStatus, 2000);
+      // Update every 1 second for smoother progress
+      setInterval(updateQueueStatus, 1000);
       updateQueueStatus();
 
       // Global generation progress indicator
@@ -298,6 +298,13 @@
               const currentRun = runs.find(r => r.id === currentRunId);
               if (currentRun) {
                 window.updateLocalProgress(currentRun);
+                
+                // Auto-refresh when generation completes
+                if (currentRun.status === 'succeeded' || currentRun.status === 'failed') {
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000); // Wait 2 seconds before refresh
+                }
               }
             }
           }
@@ -306,8 +313,8 @@
         }
       }
 
-      // Update every 2 seconds
-      setInterval(updateGenStatus, 2000);
+      // Update every 1 second for better responsiveness
+      setInterval(updateGenStatus, 1000);
       updateGenStatus();
     </script>
     {% endif %}
