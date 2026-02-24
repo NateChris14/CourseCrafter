@@ -180,10 +180,12 @@
         <h5 class="text-secondary" style="font-size: 0.9rem; margin-bottom: 12px;">📸 Suggested Images</h5>
         <div class="flex gap-3" style="flex-wrap: wrap;">
           {% for img in m.media_suggestions.images %}
-          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;">
+          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;" onclick="searchImages('{{ img.search_keywords | urlencode }}', '{{ img.description }}'); return false;">
             <div class="card image-card" style="width: 100%; border: 1px solid var(--border);">
-              <div style="height: 140px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; border-bottom: 1px solid var(--border);">
-                🖼️
+              <div class="image-preview" style="height: 140px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}">
+                <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">🔄</div>
+                <div class="placeholder-icon">🖼️</div>
+                <img class="thumbnail" style="width: 100%; height: 100%; object-fit: cover; display: none;" alt="{{ img.description }}">
               </div>
               <div style="padding: 12px;">
                 <p style="margin: 0; font-size: 0.85rem; color: var(--text-primary);">{{ img.description }}</p>
@@ -218,10 +220,13 @@
             </div>
           </div>
           {% else %}
-          <a href="https://www.youtube.com/results?search_query={{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 300px; max-width: 450px; padding: 0; overflow: hidden;">
+          <a href="https://www.youtube.com/results?search_query={{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 300px; max-width: 450px; padding: 0; overflow: hidden;" onclick="searchYouTube('{{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}', '{{ video.title }}'); return false;">
             <div class="card" style="width: 100%; border: 1px solid var(--border);">
-              <div style="height: 160px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 4rem; border-bottom: 1px solid var(--border);">
-                ▶️
+              <div class="video-preview" style="height: 160px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 4rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;" data-keywords="{{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}">
+                <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">🔄</div>
+                <div class="placeholder-icon">▶️</div>
+                <img class="thumbnail" style="width: 100%; height: 100%; object-fit: cover; display: none;" alt="{{ video.title }}">
+                <div class="play-button" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 3rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); display: none;">▶️</div>
               </div>
               <div style="padding: 12px; background: var(--bg-card);">
                 <p style="margin: 0; font-weight: 600; color: var(--text-primary);">{{ video.title }}</p>
@@ -257,6 +262,59 @@ function toggleWeek(id) {
     el.style.display = 'none';
   }
 }
+
+// Search for images and show thumbnails
+async function searchImages(keywords, description) {
+  const event = window.event || arguments.callee.caller.arguments[0];
+  if (event) event.preventDefault();
+  
+  // Open Google Images search in new tab
+  window.open(`https://www.google.com/search?q=${keywords}&tbm=isch`, '_blank');
+}
+
+// Search for YouTube videos and show thumbnails
+async function searchYouTube(keywords, title) {
+  const event = window.event || arguments.callee.caller.arguments[0];
+  if (event) event.preventDefault();
+  
+  // Open YouTube search in new tab
+  window.open(`https://www.youtube.com/results?search_query=${keywords}`, '_blank');
+}
+
+// Auto-load thumbnails when page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // Load image thumbnails
+  const imagePreviews = document.querySelectorAll('.image-preview');
+  imagePreviews.forEach(preview => {
+    const keywords = preview.dataset.keywords;
+    if (keywords) {
+      // For now, we'll just show the placeholder
+      // In a future enhancement, you could integrate with an image API
+      preview.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.02)';
+        this.style.transition = 'transform 0.2s ease';
+      });
+      preview.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+      });
+    }
+  });
+  
+  // Load video thumbnails
+  const videoPreviews = document.querySelectorAll('.video-preview');
+  videoPreviews.forEach(preview => {
+    const keywords = preview.dataset.keywords;
+    if (keywords) {
+      preview.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.02)';
+        this.style.transition = 'transform 0.2s ease';
+      });
+      preview.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+      });
+    }
+  });
+});
 </script>
 
 {% endblock %}
