@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, func, Text
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -36,5 +36,8 @@ class GenerationRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships for eager loading
+    roadmap: Mapped["Roadmap"] = relationship("Roadmap", back_populates="generation_runs")
 
     

@@ -1,5 +1,6 @@
 # app/generation/routes.py
 import uuid
+import gzip
 
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -25,13 +26,18 @@ def start_generation(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    logger.info(f"[start_generation] Starting generation for roadmap_id: {roadmap_id}, user_id: {user.id}")
+    
     rm = (
         db.query(Roadmap)
         .filter(Roadmap.id == roadmap_id, Roadmap.user_id == user.id)
         .first()
     )
     if not rm:
+        logger.warning(f"[start_generation] Roadmap not found: {roadmap_id}")
         return RedirectResponse(url="/roadmaps?error=not_found", status_code=303)
+
+    logger.info(f"[start_generation] Found roadmap: {rm.title}")
 
     run = GenerationRun(
         user_id=user.id,
@@ -42,12 +48,15 @@ def start_generation(
     )
     db.add(run)
     db.flush()  # ensures run.id exists without committing yet
+    logger.info(f"[start_generation] Created generation run: {run.id}")
 
     # Queue task using Redis queue
     task_id = queue_roadmap_generation(str(run.id))
     run.celery_task_id = task_id  # legacy field; rename later if you want
+    logger.info(f"[start_generation] Queued task: {task_id}")
 
     db.commit()
+    logger.info(f"[start_generation] Database committed, redirecting to: /roadmaps/{rm.id}?run={run.id}")
 
     return RedirectResponse(url=f"/roadmaps/{rm.id}?run={run.id}", status_code=303)
 
@@ -92,6 +101,21 @@ def start_course_modules_generation(
     return RedirectResponse(url=f"/courses/{course.id}?run={run.id}", status_code=303)
 
 
+def compress_response(data: dict) -> JSONResponse:
+    """Compress JSON response with gzip for better performance."""
+    import json
+    from fastapi import Response
+    
+    json_data = json.dumps(data)
+    compressed = gzip.compress(json_data.encode('utf-8'))
+    
+    return Response(
+        content=compressed,
+        media_type="application/json",
+        headers={"Content-Encoding": "gzip"}
+    )
+
+
 @router.get("/runs/{run_id}")
 def get_run_status(
     run_id: uuid.UUID,
@@ -106,17 +130,15 @@ def get_run_status(
     if not run:
         return JSONResponse({"error": "not_found"}, status_code=404)
 
-    return JSONResponse(
-        {
-            "id": str(run.id),
-            "status": run.status,
-            "progress": run.progress,
-            "message": run.message,
-            "error": run.error,
-            "course_id": str(run.course_id) if run.course_id else None,
-            "result_json": run.result_json if run.status == "succeeded" else None,
-        }
-    )
+    return compress_response({
+        "id": str(run.id),
+        "status": run.status,
+        "progress": run.progress,
+        "message": run.message,
+        "error": run.error,
+        "course_id": str(run.course_id) if run.course_id else None,
+        "result_json": run.result_json if run.status == "succeeded" else None,
+    })
 
 
 @router.get("/runs")
@@ -134,7 +156,7 @@ def get_user_active_runs(
         .order_by(GenerationRun.created_at.desc())
         .all()
     )
-    return JSONResponse([
+    return compress_response([
         {
             "id": str(run.id),
             "status": run.status,
@@ -170,7 +192,7 @@ def queue_status(
                     task["progress"] = run.progress
                     task["message"] = run.message
 
-    return JSONResponse(status)
+    return compress_response(status)
 
 
 @router.post("/queue/clear-pending")
@@ -180,7 +202,7 @@ def clear_pending(
 ):
     """Clear all pending jobs from the queue."""
     count = clear_pending_queue()
-    return JSONResponse({"ok": True, "cleared": count})
+    return compress_response({"ok": True, "cleared": count})
 
 
 @router.post("/queue/clear-processing")
@@ -190,7 +212,10 @@ def clear_processing(
 ):
     """Clear all processing jobs and mark them as failed."""
     count = clear_processing_queue()
-    return JSONResponse({"ok": True, "cleared": count})
+    return compress_response({
+        "ok": True,
+        "cleared": count
+    })
 
 
 @router.post("/queue/clear-all")
@@ -201,7 +226,7 @@ def clear_all(
     """Clear both pending and processing queues."""
     pending_count = clear_pending_queue()
     processing_count = clear_processing_queue()
-    return JSONResponse({
+    return compress_response({
         "ok": True,
         "cleared_pending": pending_count,
         "cleared_processing": processing_count,
@@ -222,7 +247,7 @@ def cancel_run(
         GenerationRun.user_id == user.id
     ).first()
     if not run:
-        return JSONResponse({"error": "not_found"}, status_code=404)
+        return compress_response({"error": "not_found"}, status_code=404)
 
     result = cancel_job_by_run_id(str(run_id))
-    return JSONResponse(result)
+    return compress_response(result)

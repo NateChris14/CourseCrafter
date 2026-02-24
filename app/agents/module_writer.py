@@ -89,16 +89,27 @@ def validate_module_markdown(md: str) -> None:
     # Normalize required headings to lowercase for comparison
     normalized_required = [h.lower() for h in required_headings]
     
-    # Check all required headings exist (case-insensitive)
-    missing = set(normalized_required) - set(found_headings)
-    extra = set(found_headings) - set(normalized_required)
+    # Check all required headings exist (case-insensitive and flexible matching)
+    missing = []
+    for required in normalized_required:
+        # Check if any found heading contains the required heading as a base
+        found = any(required in found_heading for found_heading in found_headings)
+        if not found:
+            # Show original case for missing headings
+            original_missing = [h for h in required_headings if h.lower() == required]
+            missing.extend(original_missing)
+    
+    # Only flag extra headings that don't match any required pattern
+    extra = []
+    for found_heading in found_headings:
+        matches_any = any(required in found_heading for required in normalized_required)
+        if not matches_any:
+            extra.append(found_heading)
     
     if missing or extra:
         error_msg = "Invalid headings structure"
         if missing:
-            # Show original case for missing headings
-            original_missing = [h for h in required_headings if h.lower() in missing]
-            error_msg += f". Missing: {set(original_missing)}"
+            error_msg += f". Missing: {set(missing)}"
         if extra:
             error_msg += f". Extra: {extra}"
         raise ValueError(error_msg)

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -23,3 +23,6 @@ class Roadmap(Base):
     duration_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    generation_runs: Mapped[list["GenerationRun"]] = relationship("GenerationRun", back_populates="roadmap")

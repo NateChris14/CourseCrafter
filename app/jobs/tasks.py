@@ -25,6 +25,7 @@ from app.db.models.generation_run import GenerationRun
 from app.db.models.roadmap import Roadmap
 from app.db.models.course import Course
 from app.db.models.course_module import CourseModule
+from sqlalchemy.orm import joinedload
 
 from app.agents.workflow import generate_roadmap_outline
 from app.graphs.course_generation import build_course_generation_graph_builder
@@ -46,13 +47,20 @@ def _ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
+# Use Redis pipeline for batch operations
 redis_client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 def get_queue_status() -> Dict[str, Any]:
     """Get current queue status for display to users."""
-    pending = redis_client.lrange(PENDING_Q, 0, -1)
-    processing = redis_client.lrange(PROCESSING_Q, 0, -1)
+    # Use Redis pipeline for batch operations
+    with redis_client.pipeline() as pipe:
+        pending = pipe.lrange(PENDING_Q, 0, -1)
+        processing = pipe.lrange(PROCESSING_Q, 0, -1)
+        results = pipe.execute()
+    
+    pending = results[0]
+    processing = results[1]
 
     pending_tasks = []
     for item in pending:
@@ -198,7 +206,11 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
 
     db = SessionLocal()
     try:
-        run = db.query(GenerationRun).filter(GenerationRun.id == run_uuid).first()
+        # Use eager loading to avoid N+1 problems
+        run = db.query(GenerationRun).options(
+            joinedload(GenerationRun.roadmap)
+        ).filter(GenerationRun.id == run_uuid).first()
+        
         if not run:
             return {"ok": False, "error": "run not found"}
 
@@ -207,13 +219,14 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         if run.status == "running":
             return {"ok": True, "skipped": True, "status": "running"}
 
+        # Batch all updates together to reduce database round trips
         run.status = "running"
         run.progress = 5
         run.message = "Starting outline generation"
         run.started_at = datetime.now(timezone.utc)
-        db.commit()
-
-        rm = db.query(Roadmap).filter(Roadmap.id == run.roadmap_id).first()
+        
+        # Check if roadmap exists in same query
+        rm = run.roadmap  # Already loaded via eager loading
         if not rm:
             run.status = "failed"
             run.error = f"Roadmap not found for roadmap_id={run.roadmap_id}"
@@ -225,15 +238,21 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
         run.message = "Planning roadmap outline (LLM)"
         db.commit()
 
+        logger.info(f"[generate_roadmap_outline_sync] Starting LLM call for roadmap: {rm.title}")
+        logger.info(f"[generate_roadmap_outline_sync] Field: {rm.field}, Level: {rm.level}, Weeks: {rm.duration_weeks}")
+        
         outline_obj = generate_roadmap_outline(
             rm.field, rm.level, rm.weekly_hours, rm.duration_weeks
         )
+        
+        logger.info(f"[generate_roadmap_outline_sync] LLM call completed successfully")
         outline = outline_obj.model_dump()
 
         run.progress = 60
         run.message = "Creating course structure"
         db.commit()
 
+        # Batch course and module creation
         course = Course(
             user_id=run.user_id,
             roadmap_id=rm.id,
@@ -242,20 +261,21 @@ def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
             description=f"{rm.duration_weeks}-week roadmap for {rm.field}, level {rm.level}.",
         )
         db.add(course)
-        db.flush()
+        db.flush()  # Get course.id without committing
 
-        run.course_id = course.id
-
+        # Batch insert all modules at once
+        modules_data = []
         for w in outline["weeks"]:
-            db.add(
-                CourseModule(
-                    course_id=course.id,
-                    week=int(w["week"]),
-                    title=w["title"],
-                    outcomes_json=json.dumps(w["outcomes"]),
-                    content_md=None,
-                )
-            )
+            modules_data.append({
+                "course_id": course.id,
+                "week": int(w["week"]),
+                "title": w["title"],
+                "outcomes_json": json.dumps(w["outcomes"]),
+                "content_md": None,
+            })
+        
+        db.bulk_insert_mappings(CourseModule, modules_data)  # Bulk insert for performance
+        run.course_id = course.id
 
         run.progress = 85
         run.message = "Saving outline + course structure"
