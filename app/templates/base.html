@@ -25,7 +25,7 @@
               </div>
             </div>
             <div id="queuePanel" style="position:relative;">
-              <span id="queueBadge" class="btn btn-secondary btn-sm">Queue: <span id="queueCount">0</span></span>
+              <span id="queueBadge" class="btn btn-sm" style="background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); color: white; border: 1px solid #4a5568;">Queue: <span id="queueCount">0</span></span>
               <div id="queueDetails" style="display:none; position:absolute; top:100%; right:0; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-lg); min-width:360px; max-width:450px; max-height:500px; overflow-y:auto; z-index:1000; padding:16px; margin-top:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px;">
                   <h4 style="margin:0;">Active Jobs</h4>
@@ -76,26 +76,38 @@
       function createJobItem(task, isProcessing) {
         const progress = task.progress || 0;
         const status = task.run_status || 'queued';
-        const message = task.message || (isProcessing ? 'Processing...' : 'Waiting...');
-        const runId = task.run_id || '';
+        let message = task.message;
+        
+        // Create better fallback message
+        if (!message || message.trim() === '') {
+          if (isProcessing) {
+            message = `Processing... ${progress}%`;
+          } else {
+            message = 'Waiting to start';
+          }
+        }
+        
+        // Access run_id from nested task structure
+        const taskData = task.task || {};
+        const runId = taskData.run_id || '';
         const canCancel = isProcessing || !isProcessing; // Can cancel both pending and processing
 
         return `
-          <div style="margin-bottom:12px; padding:8px; background:#f8f8f8; border-radius:6px;">
+          <div style="margin-bottom:12px; padding:8px; background:var(--bg-tertiary); border-radius:6px; border: 1px solid var(--border);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <span style="font-weight:600; font-size:0.9em;">${formatJobType(task.type)}</span>
+              <span style="font-weight:600; font-size:0.9em; color:var(--text-primary);">${formatJobType(taskData.type)}</span>
               <div>
-                <span style="font-size:0.8em; color:${isProcessing ? '#2196F3' : '#999'}; margin-right:8px;">${isProcessing ? '● ' + status : '○ queued'}</span>
-                ${canCancel ? `<button onclick="cancelJob('${runId}')" style="font-size:0.7em; padding:2px 6px; background:#f44336; color:white; border:none; border-radius:3px; cursor:pointer;">✕</button>` : ''}
+                <span style="font-size:0.8em; color:${isProcessing ? 'var(--primary-light)' : 'var(--text-muted)'}; margin-right:8px;">${isProcessing ? '● ' + status : '○ queued'}</span>
+                ${canCancel ? `<button onclick="cancelJob('${runId}')" style="font-size:0.7em; padding:2px 6px; background:var(--error); color:white; border:none; border-radius:3px; cursor:pointer;">✕</button>` : ''}
               </div>
             </div>
-            <div style="font-size:0.8em; color:#666; margin-bottom:6px;">${message}</div>
-            <div style="background:#e0e0e0; border-radius:4px; height:6px; overflow:hidden;">
-              <div style="background:${isProcessing ? '#4CAF50' : '#ccc'}; height:100%; width:${progress}%; transition:width 0.3s;"></div>
+            <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom:6px;">${message}</div>
+            <div style="background:var(--bg-secondary); border-radius:4px; height:6px; overflow:hidden; border: 1px solid var(--border);">
+              <div style="background:${isProcessing ? 'linear-gradient(90deg, var(--primary), var(--primary-light))' : 'var(--bg-tertiary)'}; height:100%; width:${progress}%; transition:width 0.3s;"></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:4px;">
-              <span style="font-size:0.75em; color:#999;">${progress}%</span>
-              ${runId ? `<a href="/courses?run=${runId}" style="font-size:0.75em;">View</a>` : ''}
+              <span style="font-size:0.75em; color:var(--text-muted); font-weight:600;">${progress}%</span>
+              ${runId ? `<a href="/courses?run=${runId}" style="font-size:0.75em; color:var(--primary-light);">View</a>` : ''}
             </div>
           </div>
         `;
@@ -155,14 +167,22 @@
           const countEl = document.getElementById('queueCount');
           if (countEl) {
             countEl.textContent = totalCount;
-            queueBadge.style.background = totalCount > 0 ? '#fff3cd' : '#e0e0e0';
+            if (totalCount > 0) {
+              queueBadge.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+              queueBadge.style.color = 'white';
+              queueBadge.style.borderColor = '#f59e0b';
+            } else {
+              queueBadge.style.background = 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)';
+              queueBadge.style.color = 'white';
+              queueBadge.style.borderColor = '#4a5568';
+            }
           }
 
           // Update processing list
           const processingList = document.getElementById('processingList');
           if (processingList) {
             if (data.processing && data.processing.length > 0) {
-              processingList.innerHTML = '<h5 style="margin:0 0 8px 0; color:#2196F3;">Processing</h5>' +
+              processingList.innerHTML = '<h5 style="margin:0 0 8px 0; color:var(--primary-light); font-weight:600;">Processing</h5>' +
                 data.processing.map(t => createJobItem(t, true)).join('');
             } else {
               processingList.innerHTML = '';
@@ -173,7 +193,7 @@
           const pendingList = document.getElementById('pendingList');
           if (pendingList) {
             if (data.pending && data.pending.length > 0) {
-              pendingList.innerHTML = '<h5 style="margin:0 0 8px 0; color:#999;">Pending (' + data.pending.length + ')</h5>' +
+              pendingList.innerHTML = '<h5 style="margin:0 0 8px 0; color:var(--text-muted); font-weight:600;">Pending (' + data.pending.length + ')</h5>' +
                 data.pending.map(t => createJobItem(t, false)).join('');
             } else {
               pendingList.innerHTML = '';

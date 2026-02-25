@@ -181,7 +181,9 @@ def queue_status(
     # Enrich with run details from DB
     for task_list in [status.get("pending", []), status.get("processing", [])]:
         for task in task_list:
-            run_id = task.get("run_id")
+            # Access run_id from nested task structure
+            task_data = task.get("task", {})
+            run_id = task_data.get("run_id")
             if run_id:
                 run = db.query(GenerationRun).filter(
                     GenerationRun.id == uuid.UUID(str(run_id)),
@@ -189,7 +191,7 @@ def queue_status(
                 ).first()
                 if run:
                     task["run_status"] = run.status
-                    task["progress"] = run.progress
+                    task["progress"] = run.progress or 0
                     task["message"] = run.message
 
     return compress_response(status)

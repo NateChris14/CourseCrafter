@@ -72,6 +72,8 @@ def get_queue_status() -> Dict[str, Any]:
                 "run_status": "queued",
                 "attempt": task.get("attempt", 0),
                 "timestamp": task.get("timestamp"),
+                "progress": 0,
+                "message": "Waiting to start",
             })
         except json.JSONDecodeError:
             continue
@@ -85,6 +87,8 @@ def get_queue_status() -> Dict[str, Any]:
                 "run_status": "processing",
                 "attempt": task.get("attempt", 0),
                 "timestamp": task.get("timestamp"),
+                "progress": 0,
+                "message": "Processing...",
             })
         except json.JSONDecodeError:
             continue
