@@ -25,6 +25,18 @@ IMPORTANT: Never include URLs or YouTube links. Only provide search keywords tha
 
 def build_module_prompt(field: str, level: str, week: int, title: str,
 outcomes: list[str]) -> str:
+    """Build the module writing prompt for LLM content generation.
+    
+    Args:
+        field: Subject area/field of study
+        level: Learner level
+        week: Week number
+        title: Module title
+        outcomes: List of learning outcomes
+        
+    Returns:
+        Formatted prompt string for the LLM
+    """
     
     outcomes_text = "\n".join([f"- {o}" for o in outcomes])
     
@@ -121,6 +133,24 @@ def validate_module_markdown(md: str) -> None:
 
 def write_module_markdown(field: str, level: str, week: int, title: str,
 outcomes: list[str]) -> str:
+    """Generate markdown content for a course module using LLM.
+    
+    Creates structured markdown with required sections and validates output.
+    Includes automatic repair retry if validation fails.
+    
+    Args:
+        field: Subject area/field of study
+        level: Learner level
+        week: Week number
+        title: Module title
+        outcomes: List of learning outcomes
+        
+    Returns:
+        Validated markdown content string
+        
+    Raises:
+        DocumentPortalException: If generation fails after repair retry
+    """
     
     llm = get_llm_client()
     prompt = build_module_prompt(field, level, week, title, outcomes)

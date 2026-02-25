@@ -1,4 +1,3 @@
-# app/jobs/tasks.py
 """
 Redis-based (reliable) task queue for generation.
 
@@ -36,6 +35,7 @@ MAX_RETRIES = 3
 
 
 def _to_uuid(v: str | uuid.UUID | None) -> uuid.UUID | None:
+    """Convert string or UUID to UUID object, handling None values."""
     if v is None:
         return None
     if isinstance(v, uuid.UUID):
@@ -44,6 +44,7 @@ def _to_uuid(v: str | uuid.UUID | None) -> uuid.UUID | None:
 
 
 def _ts() -> str:
+    """Get current UTC timestamp as formatted string."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -106,6 +107,17 @@ def enqueue_job(
     course_id: str | None = None,
     overwrite: bool = False,
 ) -> str:
+    """Enqueue a job for processing.
+    
+    Args:
+        job_type: Type of job ('generate_roadmap_outline' or 'generate_course_modules')
+        run_id: Generation run ID
+        course_id: Optional course ID for module generation jobs
+        overwrite: Whether to overwrite existing content
+        
+    Returns:
+        Task ID for the enqueued job
+    """
     task_id = str(uuid.uuid4())
     task_data = {
         "task_id": task_id,
@@ -121,6 +133,14 @@ def enqueue_job(
 
 
 def queue_roadmap_generation(run_id: str) -> str:
+    """Convenience function to enqueue a roadmap generation job.
+    
+    Args:
+        run_id: Generation run ID
+        
+    Returns:
+        Task ID for the enqueued job
+    """
     return enqueue_job(job_type="generate_roadmap_outline", run_id=run_id)
 
 
@@ -196,6 +216,20 @@ def cancel_job_by_run_id(run_id: str) -> Dict[str, Any]:
 # Job handlers (worker)
 # -------------------------
 def generate_roadmap_outline_sync(run_id: str) -> Dict[str, Any]:
+    """Generate roadmap outline synchronously.
+    
+    Creates course structure with weekly modules based on roadmap requirements.
+    Updates generation run status throughout the process.
+    
+    Args:
+        run_id: Generation run ID
+        
+    Returns:
+        Dict with success status and course_id if successful
+        
+    Raises:
+        DocumentPortalException: If generation fails
+    """
     run_uuid = _to_uuid(run_id)
     if run_uuid is None:
         return {"ok": False, "error": "invalid run_id"}
@@ -361,6 +395,15 @@ def generate_course_modules_langgraph(
 # Worker loop (consumer)
 # -------------------------
 def process_roadmap_generation_queue():
+    """Worker loop that processes jobs from the Redis queue.
+    
+    Continuously polls for jobs, processes them based on type,
+    and handles retries on failure. Runs indefinitely.
+    
+    Job types:
+    - generate_roadmap_outline: Creates course structure
+    - generate_course_modules: Generates detailed module content
+    """
     logger.info(f"[worker] Starting loop. pending={PENDING_Q} processing={PROCESSING_Q}")
 
     while True:

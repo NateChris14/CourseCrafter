@@ -1,4 +1,3 @@
-# app/courses/routes.py
 import json
 import uuid
 
@@ -72,13 +71,13 @@ def view_course(
         .all()
     )
 
-    md = MarkdownIt("js-default")  # disables raw HTML parsing vs commonmark [web:518]
+    md = MarkdownIt("js-default")  # disables raw HTML parsing vs commonmark 
 
     module_views = []
     for m in modules:
         content_html = None
         if m.content_md and m.content_md.strip():
-            content_html = Markup(md.render(m.content_md))  # mark as safe for Jinja [web:722]
+            content_html = Markup(md.render(m.content_md))  # mark as safe for Jinja 
 
         # Parse media suggestions if available
         media_suggestions = None

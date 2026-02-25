@@ -1,4 +1,3 @@
-# app/graphs/course_generation.py
 from __future__ import annotations
 
 import json
@@ -29,10 +28,23 @@ class GenState(TypedDict):
 
 
 def _u(s: str) -> uuid.UUID:
+    """Convert string to UUID object."""
     return uuid.UUID(str(s))
 
 
 def load_state(state: GenState, config: RunnableConfig) -> GenState:
+    """Load initial state for course generation.
+    
+    Retrieves run, course, and module data from database.
+    Determines which weeks need processing based on overwrite flag.
+    
+    Args:
+        state: Current generation state
+        config: LangGraph runnable configuration
+        
+    Returns:
+        Updated state with pending/done weeks populated
+    """
     logger.info(f"[load_state] Starting course generation for run_id={state['run_id']}, course_id={state['course_id']}")
     db = SessionLocal()
     try:
@@ -97,7 +109,14 @@ def load_state(state: GenState, config: RunnableConfig) -> GenState:
 
 
 def _parse_media_suggestions(md: str) -> dict:
-    """Parse media suggestions from markdown content."""
+    """Parse media suggestions from markdown content.
+    
+    Args:
+        md: Markdown content containing media suggestions
+        
+    Returns:
+        Dict with 'images' and 'videos' lists
+    """
     import re
     images = []
     videos = []
@@ -134,6 +153,18 @@ def _parse_media_suggestions(md: str) -> dict:
 
 
 def write_one_week(state: GenState, config: RunnableConfig) -> GenState:
+    """Generate content for one week of the course.
+    
+    Args:
+        state: Current generation state
+        config: LangGraph runnable configuration
+        
+    Returns:
+        Updated state with week moved from pending to done
+        
+    Raises:
+        DocumentPortalException: If week generation fails
+    """
     logger.info(f"[write_one_week] Starting week generation. Pending weeks: {state.get('pending_weeks')}")
     if not state.get("pending_weeks"):
         logger.info("[write_one_week] No pending weeks, returning")
@@ -216,6 +247,15 @@ def write_one_week(state: GenState, config: RunnableConfig) -> GenState:
 
 
 def finish(state: GenState, config: RunnableConfig) -> GenState:
+    """Finalize course generation and mark run as succeeded.
+    
+    Args:
+        state: Current generation state
+        config: LangGraph runnable configuration
+        
+    Returns:
+        Final state
+    """
     weeks_written = len(state.get('done_weeks') or [])
     logger.info(f"[finish] Course generation completed. Total weeks written: {weeks_written}")
     update_run(
@@ -230,6 +270,14 @@ def finish(state: GenState, config: RunnableConfig) -> GenState:
 
 
 def should_continue(state: GenState) -> str:
+    """Determine if more weeks need processing.
+    
+    Args:
+        state: Current generation state
+        
+    Returns:
+        'write_one_week' if pending weeks exist, 'finish' otherwise
+    """
     has_pending = bool(state.get("pending_weeks"))
     result = "write_one_week" if has_pending else "finish"
     logger.debug(f"[should_continue] pending_weeks={state.get('pending_weeks')} -> {result}")
@@ -237,6 +285,13 @@ def should_continue(state: GenState) -> str:
 
 
 def build_course_generation_graph_builder() -> StateGraph:
+    """Build the LangGraph for course generation workflow.
+    
+    Creates a graph with nodes for loading state, writing weeks, and finishing.
+    
+    Returns:
+        Configured StateGraph builder
+    """
     logger.info("[build_course_generation_graph_builder] Building course generation graph")
     builder = StateGraph(GenState)
     builder.add_node("load_state", load_state)

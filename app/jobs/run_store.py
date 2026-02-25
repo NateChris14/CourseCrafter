@@ -1,4 +1,3 @@
-# app/jobs/run_store.py
 import uuid
 from datetime import datetime, timezone
 
@@ -7,6 +6,7 @@ from app.db.models.generation_run import GenerationRun
 
 
 def _to_uuid(v: str | uuid.UUID | None) -> uuid.UUID | None:
+    """Convert string or UUID to UUID object, handling None values."""
     if v is None:
         return None
     if isinstance(v, uuid.UUID):
@@ -25,6 +25,18 @@ def update_run(
     started: bool = False,
     finished: bool = False,
 ) -> None:
+    """Update generation run status and metadata.
+    
+    Args:
+        run_id: Generation run ID
+        status: New status value
+        progress: Progress percentage (0-100)
+        message: Status message
+        error: Error message if failed
+        result_json: JSON result data
+        started: Set started_at timestamp if True
+        finished: Set finished_at timestamp if True
+    """
     run_uuid = _to_uuid(run_id)
     if run_uuid is None:
         return

@@ -1,4 +1,3 @@
-# app/settings.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -22,7 +21,7 @@ class Settings(BaseSettings):
 
     @property
     def langgraph_postgres_dsn(self) -> str:
-        # PostgresSaver wants a DB-API style DSN like postgresql://..., not SQLAlchemy's postgresql+psycopg://... [web:1142]
-        return self.database_url.replace("postgresql+psycopg://", "postgresql://", 1)  # [web:1144]
+        # PostgresSaver wants a DB-API style DSN like postgresql://..., not SQLAlchemy's postgresql+psycopg://...
+        return self.database_url.replace("postgresql+psycopg://", "postgresql://", 1) 
 
 settings = Settings()

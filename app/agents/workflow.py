@@ -1,4 +1,3 @@
-# app/agents/workflow.py
 import re
 from pydantic import ValidationError
 
@@ -15,6 +14,17 @@ The JSON must match the given schema exactly.
 
 
 def build_planner_prompt(field: str, level: str, weekly_hours: int, duration_weeks: int) -> str:
+    """Build the planner prompt for LLM roadmap generation.
+    
+    Args:
+        field: Subject area/field of study
+        level: Learner level (beginner, intermediate, advanced)
+        weekly_hours: Hours available per week
+        duration_weeks: Total duration in weeks
+        
+    Returns:
+        Formatted prompt string for the LLM
+    """
     return f"""
 Create a {duration_weeks}-week learning roadmap for: {field}
 Learner level: {level}
@@ -57,6 +67,15 @@ def _extract_first_json_object(text: str) -> str | None:
 
 
 def _validate_outline(outline: RoadmapOutline, duration_weeks: int) -> None:
+    """Validate roadmap outline structure and content.
+    
+    Args:
+        outline: The roadmap outline to validate
+        duration_weeks: Expected number of weeks
+        
+    Raises:
+        ValueError: If validation fails
+    """
     if len(outline.weeks) != duration_weeks:
         raise ValueError(f"Expected {duration_weeks} weeks, got {len(outline.weeks)}")
 
@@ -77,6 +96,23 @@ def _validate_outline(outline: RoadmapOutline, duration_weeks: int) -> None:
 
 
 def generate_roadmap_outline(field: str, level: str, weekly_hours: int, duration_weeks: int) -> RoadmapOutline:
+    """Generate a roadmap outline using LLM with retry logic.
+    
+    Creates a structured learning roadmap with weekly modules and outcomes.
+    Includes validation and automatic retry with error feedback.
+    
+    Args:
+        field: Subject area/field of study
+        level: Learner level (beginner, intermediate, advanced)
+        weekly_hours: Hours available per week
+        duration_weeks: Total duration in weeks
+        
+    Returns:
+        Validated RoadmapOutline object
+        
+    Raises:
+        RuntimeError: If LLM output fails validation after retries
+    """
     llm = get_llm_client()
 
     user_prompt = build_planner_prompt(field, level, weekly_hours, duration_weeks)

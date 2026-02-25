@@ -1,7 +1,8 @@
-# app/generation/routes.py
 import uuid
 import gzip
-
+import json
+    
+from fastapi import Response
 from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -52,7 +53,7 @@ def start_generation(
 
     # Queue task using Redis queue
     task_id = queue_roadmap_generation(str(run.id))
-    run.celery_task_id = task_id  # legacy field; rename later if you want
+    run.celery_task_id = task_id  # legacy field; rename later if required
     logger.info(f"[start_generation] Queued task: {task_id}")
 
     db.commit()
@@ -103,8 +104,6 @@ def start_course_modules_generation(
 
 def compress_response(data: dict) -> JSONResponse:
     """Compress JSON response with gzip for better performance."""
-    import json
-    from fastapi import Response
     
     json_data = json.dumps(data)
     compressed = gzip.compress(json_data.encode('utf-8'))

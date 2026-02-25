@@ -6,6 +6,14 @@ from app.logger import GLOBAL_LOGGER as logger
 from app.exceptions.custom_exception import DocumentPortalException
 
 def get_llm_client():
+    """Get configured LLM client based on provider settings.
+    
+    Returns:
+        LLM client instance (Groq or Ollama)
+        
+    Raises:
+        DocumentPortalException: If client initialization fails
+    """
     try:
         if settings.LLM_PROVIDER == "groq":
             logger.debug("[get_llm_client] Using Groq provider")

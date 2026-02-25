@@ -34,7 +34,7 @@ def new_roadmap_page(request: Request, user: User = Depends(get_current_user)):
 def create_roadmap(
     title: str = Form(...),
     field: str = Form(...),
-    level: str = Form("beginner"),
+    level: str = Form(...),
     weekly_hours: int = Form(8),
     duration_weeks: int = Form(16),
     db: Session = Depends(get_db),

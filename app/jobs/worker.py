@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.jobs.tasks import process_roadmap_generation_queue
 
 def signal_handler(sig, frame):
+    """Handle shutdown signals gracefully."""
     print(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}] Worker shutting down...')
     sys.exit(0)
 
