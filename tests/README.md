@@ -1,16 +1,18 @@
 # CourseGenerate Test Suite
 
-This directory contains the comprehensive test suite for the CourseGenerate application with **44 tests (100% passing)** covering all critical functionality.
+This directory contains the comprehensive test suite for the CourseGenerate application with **66 tests (100% passing)** covering all critical functionality.
 
 ## 📊 Test Coverage Summary
 
-- **Total Tests**: 44 tests
+- **Total Tests**: 66 tests
 - **Pass Rate**: 100%
-- **Unit Tests**: 29 tests (business logic, utilities, security, data models)
-- **Integration Tests**: 6 tests (API endpoints, authentication, generation workflow)
-- **Security Tests**: 9 tests (authentication, authorization, vulnerability prevention)
+- **Unit Tests**: 51 tests (business logic, utilities, security, data models, agent validation)
+- **Integration Tests**: 15 tests (API endpoints, authentication, generation workflow)
 
 ## 🧪 Test Categories
+
+### 🤖 Agent Validation Tests (22 tests)
+- **Agent Validation** (22 tests) - workflow and module writer validation functions
 
 ### 🛡️ Security Tests (9 tests)
 - **Password hashing security** - bcrypt strength, uniqueness, length limits
@@ -29,18 +31,19 @@ This directory contains the comprehensive test suite for the CourseGenerate appl
 - **Generation Functions** (4 tests) - roadmap generation workflow orchestration
 - **Model Tests** (5 tests) - User, Roadmap, Course, GenerationRun models
 
-### 🔗 Integration Tests (6 tests)
+### 🔗 Integration Tests (15 tests)
 - **Authentication Routes** (5 tests) - login, registration, logout, protected routes
 - **Generation Routes** (1 test) - roadmap generation workflow with Redis mocking
+- **Security Tests** (9 tests) - authentication, authorization, vulnerability prevention
 
 ### 🤖 LLM Integration (Mocked)
 LLM functionality is tested via mocking (best practice for external dependencies):
 - Task orchestration and workflow management
-- Database integration with generation runs
 - Error handling for LLM-related operations
 - Application logic around LLM calls
+- Agent evaluation and quality assessment
 
-## 📁 Structure
+## � Structure
 
 ```
 tests/
@@ -49,10 +52,12 @@ tests/
 │   ├── test_models_simple.py     # Database model tests
 │   ├── test_tasks.py           # Background task tests
 │   ├── test_security.py        # Security-critical function tests
+│   ├── test_agents.py          # AI agent validation tests
 │   └── __init__.py
 ├── integration/             # Integration tests
 │   ├── test_auth.py            # Authentication routes tests
 │   ├── test_generation.py     # Generation routes tests
+│   ├── test_security.py       # Security integration tests
 │   └── __init__.py
 └── README.md               # This file
 ```
@@ -80,8 +85,11 @@ uv run pytest tests/unit/
 # Run only integration tests
 uv run pytest tests/integration/
 
+# Run agent evaluation tests only
+uv run pytest tests/unit/test_agents.py tests/unit/test_evaluation.py
+
 # Run security tests only
-uv run pytest tests/unit/test_security.py
+uv run pytest tests/unit/test_security.py tests/integration/test_security.py
 
 # Run specific test file
 uv run pytest tests/unit/test_tasks.py
@@ -186,6 +194,24 @@ def test_my_function():
     assert result["expected_key"] == "expected_value"
 ```
 
+### Agent Evaluation Tests
+
+Agent evaluation tests should focus on AI agent quality and performance:
+
+```python
+def test_agent_quality_evaluation():
+    """Test agent evaluation framework."""
+    evaluator = AgentEvaluator()
+    
+    # Test with mock agent response
+    report = evaluator.evaluate_workflow_agent("Python", "beginner", 5, 4)
+    
+    # Assert quality metrics
+    assert report.quality_metrics.overall_score > 0.8
+    assert report.performance_metrics.success is True
+    assert report.evaluation_result in [EvaluationResult.EXCELLENT, EvaluationResult.GOOD]
+```
+
 ### Integration Tests
 
 Integration tests should test multiple components working together:
@@ -210,6 +236,8 @@ Current coverage achieves:
 - ✅ **Comprehensive security coverage** - All critical vulnerabilities tested
 - ✅ **Core functionality coverage** - Database, API, authentication tested
 - ✅ **LLM integration coverage** - Application logic around LLM calls tested
+- ✅ **Agent evaluation coverage** - AI agent quality and performance testing
+- ✅ **Validation framework coverage** - Content quality and structure validation
 
 ## 🐛 Debugging Tests
 
@@ -229,6 +257,9 @@ uv run pytest -x
 
 ```bash
 uv run pytest tests/unit/test_security.py::TestSecurityUnit::test_password_hashing_strength
+
+# Run agent evaluation test
+uv run pytest tests/unit/test_evaluation.py::TestAgentEvaluator::test_evaluate_workflow_agent_success
 ```
 
 ## 🔄 Continuous Integration
