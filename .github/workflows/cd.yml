@@ -76,7 +76,7 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
           echo "Deploying image: $IMAGE"
 
-      - name: Write .env for Docker Compose
+      - name: Write .env for Docker Compose (interpolation)
         run: |
           cat > .env << EOF
           ECR_IMAGE=${IMAGE}
@@ -94,26 +94,52 @@ jobs:
           docker compose down || true
           docker compose up -d
 
-      # ---------- DEBUG (safe-ish) ----------
-      - name: Debug - containers
+      # ---------- DEBUG ----------
+      - name: Debug - where am I / files
         if: always()
         run: |
-          docker compose ps
+          pwd
+          ls -la
+          echo "---- .env keys ----"
+          test -f .env && cut -d= -f1 .env || true
 
-      - name: Debug - web logs
+      - name: Debug - rendered compose config
         if: always()
         run: |
-          docker compose logs --tail=200 web || true
+          docker compose config || true
 
-      - name: Debug - worker logs
+      - name: Debug - containers (compose)
         if: always()
         run: |
-          docker compose logs --tail=200 worker || true
+          docker compose ps || true
 
-      - name: Debug - db logs
+      - name: Debug - list all containers
         if: always()
         run: |
-          docker compose logs --tail=200 db || true
+          docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}" || true
+
+      - name: Debug - web logs (compose)
+        if: always()
+        run: |
+          docker compose logs --tail=300 web || true
+
+      - name: Debug - worker logs (compose)
+        if: always()
+        run: |
+          docker compose logs --tail=300 worker || true
+
+      - name: Debug - db logs (compose)
+        if: always()
+        run: |
+          docker compose logs --tail=300 db || true
+
+      - name: Debug fallback logs from any container created from IMAGE
+        if: always()
+        run: |
+          echo "IMAGE=${IMAGE}"
+          CID="$(docker ps -aq --filter "ancestor=${IMAGE}" | head -n 1)"
+          echo "CID=${CID}"
+          if [ -n "$CID" ]; then docker logs --tail=300 "$CID" || true; fi
 
       - name: Debug - check required env present (no values)
         if: always()
@@ -123,7 +149,12 @@ jobs:
               if [ -z "$(printenv "$k")" ]; then echo "MISSING:$k"; else echo "OK:$k"; fi
             done
           ' || true
-      # --------------------------------------
+
+      - name: Debug - HTTP check from host
+        if: always()
+        run: |
+          curl -v --max-time 5 http://localhost:8080/ || true
+      # ---------------------------
 
       - name: Clean up old images
         if: always()
