@@ -94,6 +94,38 @@ jobs:
           docker compose down || true
           docker compose up -d
 
+      # ---------- DEBUG (safe-ish) ----------
+      - name: Debug - containers
+        if: always()
+        run: |
+          docker compose ps
+
+      - name: Debug - web logs
+        if: always()
+        run: |
+          docker compose logs --tail=200 web || true
+
+      - name: Debug - worker logs
+        if: always()
+        run: |
+          docker compose logs --tail=200 worker || true
+
+      - name: Debug - db logs
+        if: always()
+        run: |
+          docker compose logs --tail=200 db || true
+
+      - name: Debug - check required env present (no values)
+        if: always()
+        run: |
+          docker compose exec -T web /bin/sh -lc '
+            for k in session_secret GROQ_API_KEY DATABASE_URL REDIS_URL; do
+              if [ -z "$(printenv "$k")" ]; then echo "MISSING:$k"; else echo "OK:$k"; fi
+            done
+          ' || true
+      # --------------------------------------
+
       - name: Clean up old images
+        if: always()
         run: |
           docker image prune -f
