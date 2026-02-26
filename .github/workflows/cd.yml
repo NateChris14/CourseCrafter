@@ -77,6 +77,12 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
       
+      - name: Debug ECR configuration
+        run: |
+          echo "ECR Login URI: ${{ secrets.AWS_ECR_LOGIN_URI }}"
+          echo "ECR Repository: ${{ secrets.ECR_REPOSITORY_NAME }}"
+          echo "Full image reference: ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest"
+          
       - name: Pull latest images
         run: |
           docker pull ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
@@ -87,7 +93,10 @@ jobs:
           
       - name: Update docker-compose.yml with ECR image
         run: |
+          # Replace build directives with ECR image for both web and worker services
           sed -i "s|build: \.|image: ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest|g" docker-compose.yml
+          # Verify the changes
+          cat docker-compose.yml | grep -A 5 -B 5 "image:"
           
       - name: Start services with Docker Compose
         run: |
