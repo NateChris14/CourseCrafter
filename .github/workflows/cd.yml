@@ -80,12 +80,13 @@ jobs:
 
       - name: Ensure CloudWatch log group exists (pre-create)
         run: |
+          set -euo pipefail
           aws logs create-log-group --log-group-name "/coursecrafter/prod" --region "${{ secrets.AWS_REGION }}" || true
 
       - name: Write .env for Docker Compose
         run: |
           set -euo pipefail
-          cat > .env << EOF
+          cat > .env <<EOF
           ECR_IMAGE=${IMAGE}
           SESSION_SECRET=${{ secrets.SESSION_SECRET }}
           GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
@@ -98,15 +99,18 @@ jobs:
 
       - name: Start db + redis first
         run: |
+          set -euo pipefail
           docker compose up -d db redis
 
       - name: Run DB migrations (alembic upgrade head)
         run: |
+          set -euo pipefail
           docker compose run --rm migrate
 
-      - name: Start web + worker
+      - name: Start web + worker (recreate on new image)
         run: |
-          docker compose up -d web worker
+          set -euo pipefail
+          docker compose up -d --force-recreate web worker
 
       - name: Verify containers
         if: always()
