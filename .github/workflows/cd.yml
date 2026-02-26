@@ -94,11 +94,11 @@ jobs:
 
       - name: Stop existing services
         run: |
-          docker compose -f docker-compose.prod.yml down || true
+          docker compose -f docker-compose.yml down || true
 
       - name: Start services
         run: |
-          docker compose -f docker-compose.prod.yml up -d
+          docker compose -f docker-compose.yml up -d
 
       - name: Clean up old images
         run: |
