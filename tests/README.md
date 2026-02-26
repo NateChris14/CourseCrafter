@@ -1,49 +1,49 @@
 # CourseGenerate Test Suite
 
-This directory contains the comprehensive test suite for the CourseGenerate application with **66 tests (100% passing)** covering all critical functionality.
+This directory contains the comprehensive test suite for the CourseGenerate application with 66 tests (100% passing) covering all critical functionality.
 
-## 📊 Test Coverage Summary
+## Test Coverage Summary
 
-- **Total Tests**: 66 tests
-- **Pass Rate**: 100%
-- **Unit Tests**: 51 tests (business logic, utilities, security, data models, agent validation)
-- **Integration Tests**: 15 tests (API endpoints, authentication, generation workflow)
+- Total Tests: 66 tests
+- Pass Rate: 100%
+- Unit Tests: 51 tests (business logic, utilities, security, data models, agent validation)
+- Integration Tests: 15 tests (API endpoints, authentication, generation workflow)
 
-## 🧪 Test Categories
+## Test Categories
 
-### 🤖 Agent Validation Tests (22 tests)
-- **Agent Validation** (22 tests) - workflow and module writer validation functions
+### Agent Validation Tests (22 tests)
+- Agent Validation (22 tests) - workflow and module writer validation functions
 
-### 🛡️ Security Tests (9 tests)
-- **Password hashing security** - bcrypt strength, uniqueness, length limits
-- **Session token security** - uniqueness, randomness, collision resistance
-- **Session expiry security** - expired sessions rejected properly
-- **SQL injection protection** - malicious inputs handled safely
-- **XSS protection** - script tags in registration handled safely
-- **Session hijacking protection** - tokens can't be reused after logout
-- **Authorization bypass protection** - users can't access others' resources
-- **Rate limiting simulation** - rapid requests handled gracefully
-- **Input validation edge cases** - extreme inputs handled safely
+### Security Tests (9 tests)
+- Password hashing security - bcrypt strength, uniqueness, length limits
+- Session token security - uniqueness, randomness, collision resistance
+- Session expiry security - expired sessions rejected properly
+- SQL injection protection - malicious inputs handled safely
+- XSS protection - script tags in registration handled safely
+- Session hijacking protection - tokens can't be reused after logout
+- Authorization bypass protection - users can't access others' resources
+- Rate limiting simulation - rapid requests handled gracefully
+- Input validation edge cases - extreme inputs handled safely
 
-### 🔧 Unit Tests (20 tests)
-- **Task Helpers** (5 tests) - UUID conversion, timestamp formatting
-- **Queue Operations** (6 tests) - job enqueueing, status, clearing, cancellation
-- **Generation Functions** (4 tests) - roadmap generation workflow orchestration
-- **Model Tests** (5 tests) - User, Roadmap, Course, GenerationRun models
+### Unit Tests (20 tests)
+- Task Helpers (5 tests) - UUID conversion, timestamp formatting
+- Queue Operations (6 tests) - job enqueueing, status, clearing, cancellation
+- Generation Functions (4 tests) - roadmap generation workflow orchestration
+- Model Tests (5 tests) - User, Roadmap, Course, GenerationRun models
 
-### 🔗 Integration Tests (15 tests)
-- **Authentication Routes** (5 tests) - login, registration, logout, protected routes
-- **Generation Routes** (1 test) - roadmap generation workflow with Redis mocking
-- **Security Tests** (9 tests) - authentication, authorization, vulnerability prevention
+### Integration Tests (15 tests)
+- Authentication Routes (5 tests) - login, registration, logout, protected routes
+- Generation Routes (1 test) - roadmap generation workflow with Redis mocking
+- Security Tests (9 tests) - authentication, authorization, vulnerability prevention
 
-### 🤖 LLM Integration (Mocked)
+### LLM Integration (Mocked)
 LLM functionality is tested via mocking (best practice for external dependencies):
 - Task orchestration and workflow management
 - Error handling for LLM-related operations
 - Application logic around LLM calls
 - Agent evaluation and quality assessment
 
-## � Structure
+## Structure
 
 ```
 tests/
@@ -62,7 +62,7 @@ tests/
 └── README.md               # This file
 ```
 
-## 🚀 Running Tests
+## Running Tests
 
 ### Install Test Dependencies
 
@@ -107,7 +107,7 @@ uv run pytest --cov=app --cov-report=html
 uv run pytest -v
 ```
 
-## ⚙️ Test Configuration
+## Test Configuration
 
 ### Environment Variables
 
@@ -131,10 +131,10 @@ The test suite provides several critical fixtures:
 ### Test Databases
 
 Tests use mocked databases for reliability and speed:
-- **PostgreSQL**: Mocked SQLAlchemy sessions (no real DB connections)
-- **Redis**: Mocked Redis client (no real Redis connections)
+- PostgreSQL: Mocked SQLAlchemy sessions (no real DB connections)
+- Redis: Mocked Redis client (no real Redis connections)
 
-## 🛡️ Security Testing Approach
+## Security Testing Approach
 
 The security tests follow a comprehensive approach:
 
@@ -156,7 +156,7 @@ The security tests follow a comprehensive approach:
 - Hash function collision resistance
 - UUID validation for injection prevention
 
-## 🔧 Writing New Tests
+## Writing New Tests
 
 ### Security Tests
 
@@ -229,17 +229,17 @@ def test_api_endpoint(client, mock_db):
     assert response.status_code == 303
 ```
 
-## 🎯 Coverage Goals
+## Coverage Goals
 
 Current coverage achieves:
-- ✅ **100% test pass rate** - All tests passing
-- ✅ **Comprehensive security coverage** - All critical vulnerabilities tested
-- ✅ **Core functionality coverage** - Database, API, authentication tested
-- ✅ **LLM integration coverage** - Application logic around LLM calls tested
-- ✅ **Agent evaluation coverage** - AI agent quality and performance testing
-- ✅ **Validation framework coverage** - Content quality and structure validation
+- 100% test pass rate - All tests passing
+- Comprehensive security coverage - All critical vulnerabilities tested
+- Core functionality coverage - Database, API, authentication tested
+- LLM integration coverage - Application logic around LLM calls tested
+- Agent evaluation coverage - AI agent quality and performance testing
+- Validation framework coverage - Content quality and structure validation
 
-## 🐛 Debugging Tests
+## Debugging Tests
 
 ### Run with PDB
 
@@ -262,20 +262,20 @@ uv run pytest tests/unit/test_security.py::TestSecurityUnit::test_password_hashi
 uv run pytest tests/unit/test_evaluation.py::TestAgentEvaluator::test_evaluate_workflow_agent_success
 ```
 
-## 🔄 Continuous Integration
+## Continuous Integration
 
 The test suite is designed for CI/CD environments:
 
-- **No external dependencies** - All external services mocked
-- **Fast execution** - Mocked databases and services
-- **Reliable results** - No flaky tests due to external factors
-- **Parallel support** - Tests can run in parallel
-- **Coverage reporting** - Quality gates and metrics
+- No external dependencies - All external services mocked
+- Fast execution - Mocked databases and services
+- Reliable results - No flaky tests due to external factors
+- Parallel support - Tests can run in parallel
+- Coverage reporting - Quality gates and metrics
 
-## 📈 Test Quality Standards
+## Test Quality Standards
 
-- **100% pass rate** - All tests must pass
-- **Clear assertions** - Descriptive test failures
-- **Proper isolation** - Tests don't interfere with each other
-- **Comprehensive coverage** - All critical paths tested
-- **Security focus** - Vulnerabilities actively tested and prevented
+- 100% pass rate - All tests must pass
+- Clear assertions - Descriptive test failures
+- Proper isolation - Tests don't interfere with each other
+- Comprehensive coverage - All critical paths tested
+- Security focus - Vulnerabilities actively tested and prevented
