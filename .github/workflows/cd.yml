@@ -25,9 +25,11 @@ jobs:
     name: Continuous Delivery
     needs: integration
     runs-on: ubuntu-latest
+
+    # IMPORTANT: job outputs must reference a step output that actually exists
     outputs:
-      image: ${{ steps.meta.outputs.image }}
-      registry: ${{ steps.login-ecr.outputs.registry }}
+      image: ${{ steps.build.outputs.image }}
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -44,7 +46,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push image to Amazon ECR
-        id: meta
+        id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
@@ -55,10 +57,15 @@ jobs:
           docker push "$IMAGE"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
+      - name: Debug built image output
+        run: |
+          echo "Image output is: '${{ steps.build.outputs.image }}'"
+
   deploy-to-ec2:
     name: Deploy to EC2
     needs: build-and-push-ecr-image
     runs-on: self-hosted
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,12 +81,16 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Write production env file (for docker compose)
+      - name: Debug job output
         run: |
-          cat > .env << 'EOF'
+          echo "Image from previous job: '${{ needs.build-and-push-ecr-image.outputs.image }}'"
+
+      - name: Write .env for docker compose
+        run: |
+          cat > .env << EOF
+          ECR_IMAGE=${{ needs.build-and-push-ecr-image.outputs.image }}
           SESSION_SECRET=${{ secrets.SESSION_SECRET }}
           GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
-          ECR_IMAGE=${{ needs.build-and-push-ecr-image.outputs.image }}
           EOF
 
       - name: Pull latest image
