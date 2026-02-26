@@ -29,6 +29,9 @@ from sqlalchemy.orm import joinedload
 from app.agents.workflow import generate_roadmap_outline
 from app.graphs.course_generation import build_course_generation_graph_builder
 
+from dotenv import load_dotenv
+load_dotenv()
+
 PENDING_Q = "roadmap_generation_queue"
 PROCESSING_Q = "roadmap_generation_processing"
 MAX_RETRIES = 3

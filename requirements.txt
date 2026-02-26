@@ -27,3 +27,4 @@ langgraph-checkpoint-postgres>=3.0.4
 langchain_core>=1.2.14
 
 structlog>=25.5.0
+python-dotenv>=1.0.0
