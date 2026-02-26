@@ -71,34 +71,28 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Compute image URI
-        id: vars
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
         run: |
-          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
           echo "Deploying image: $IMAGE"
 
-      - name: Write .env for docker compose
+      - name: Write .env for Docker Compose
         run: |
           cat > .env << EOF
           ECR_IMAGE=${IMAGE}
-          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          session_secret=${{ secrets.session_secret }}
           GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
           EOF
 
       - name: Pull latest image
         run: |
+          test -n "${IMAGE}"
           docker pull "${IMAGE}"
 
-      - name: Stop existing services
+      - name: Restart stack
         run: |
-          docker compose -f docker-compose.yml down || true
-
-      - name: Start services
-        run: |
-          docker compose -f docker-compose.yml up -d
+          docker compose down || true
+          docker compose up -d
 
       - name: Clean up old images
         run: |
