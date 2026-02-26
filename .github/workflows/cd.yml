@@ -46,6 +46,7 @@ jobs:
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
           IMAGE_TAG: latest
         run: |
+          set -euo pipefail
           IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           echo "Pushing image: $IMAGE"
           docker build -t "$IMAGE" .
@@ -72,12 +73,18 @@ jobs:
 
       - name: Compute image URI
         run: |
+          set -euo pipefail
           IMAGE="${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
           echo "Deploying image: $IMAGE"
 
+      - name: Ensure CloudWatch log group exists (pre-create)
+        run: |
+          aws logs create-log-group --log-group-name "/coursecrafter/prod" --region "${{ secrets.AWS_REGION }}" || true
+
       - name: Write .env for Docker Compose
         run: |
+          set -euo pipefail
           cat > .env << EOF
           ECR_IMAGE=${IMAGE}
           session_secret=${{ secrets.session_secret }}
@@ -86,7 +93,7 @@ jobs:
 
       - name: Pull latest image
         run: |
-          test -n "${IMAGE}"
+          set -euo pipefail
           docker pull "${IMAGE}"
 
       - name: Restart stack
@@ -104,3 +111,11 @@ jobs:
         run: |
           curl -v --max-time 5 http://localhost:8080/ || true
 
+      - name: Show web logging driver (sanity)
+        if: always()
+        run: |
+          WEB_CID="$(docker compose ps -q web || true)"
+          echo "WEB_CID=$WEB_CID"
+          if [ -n "$WEB_CID" ]; then
+            docker inspect "$WEB_CID" --format '{{.HostConfig.LogConfig.Type}} {{json .HostConfig.LogConfig.Config}}' || true
+          fi

@@ -14,7 +14,7 @@ services:
         awslogs-region: eu-north-1
         awslogs-group: /coursecrafter/prod
         awslogs-stream: db
-        awslogs-create-group: "true"
+        awslogs-create-group: "false"
 
   redis:
     image: redis:7
@@ -25,7 +25,7 @@ services:
         awslogs-region: eu-north-1
         awslogs-group: /coursecrafter/prod
         awslogs-stream: redis
-        awslogs-create-group: "true"
+        awslogs-create-group: "false"
 
   web:
     image: ${ECR_IMAGE}
@@ -51,7 +51,7 @@ services:
         awslogs-region: eu-north-1
         awslogs-group: /coursecrafter/prod
         awslogs-stream: web
-        awslogs-create-group: "true"
+        awslogs-create-group: "false"
 
   worker:
     image: ${ECR_IMAGE}
@@ -75,7 +75,7 @@ services:
         awslogs-region: eu-north-1
         awslogs-group: /coursecrafter/prod
         awslogs-stream: worker
-        awslogs-create-group: "true"
+        awslogs-create-group: "false"
 
 volumes:
   pgdata:
