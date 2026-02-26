@@ -87,7 +87,7 @@ jobs:
           set -euo pipefail
           cat > .env << EOF
           ECR_IMAGE=${IMAGE}
-          session_secret=${{ secrets.session_secret }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
           GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
           EOF
 
@@ -96,10 +96,17 @@ jobs:
           set -euo pipefail
           docker pull "${IMAGE}"
 
-      - name: Restart stack
+      - name: Start db + redis first
         run: |
-          docker compose down || true
-          docker compose up -d
+          docker compose up -d db redis
+
+      - name: Run DB migrations (alembic upgrade head)
+        run: |
+          docker compose run --rm migrate
+
+      - name: Start web + worker
+        run: |
+          docker compose up -d web worker
 
       - name: Verify containers
         if: always()
@@ -110,12 +117,3 @@ jobs:
         if: always()
         run: |
           curl -v --max-time 5 http://localhost:8080/ || true
-
-      - name: Show web logging driver (sanity)
-        if: always()
-        run: |
-          WEB_CID="$(docker compose ps -q web || true)"
-          echo "WEB_CID=$WEB_CID"
-          if [ -n "$WEB_CID" ]; then
-            docker inspect "$WEB_CID" --format '{{.HostConfig.LogConfig.Type}} {{json .HostConfig.LogConfig.Config}}' || true
-          fi
