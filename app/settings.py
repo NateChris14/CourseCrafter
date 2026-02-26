@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     env: str = "dev"
     database_url: str = "postgresql+psycopg://coursecrafter:coursecrafter@db:5432/coursecrafter"
     redis_url: str = "redis://redis:6379/0"
-    session_secret: str = "dev-secret-key-local-only"
+    SESSION_SECRET: str = "dev-secret-key-local-only"
 
     session_absolute_days: int = 7
     session_idle_minutes: int = 60

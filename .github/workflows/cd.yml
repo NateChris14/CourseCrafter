@@ -80,7 +80,7 @@ jobs:
         run: |
           cat > .env << EOF
           ECR_IMAGE=${IMAGE}
-          session_secret=${{ secrets.session_secret }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
           GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
           EOF
 
@@ -119,7 +119,7 @@ jobs:
         if: always()
         run: |
           docker compose exec -T web /bin/sh -lc '
-            for k in session_secret GROQ_API_KEY DATABASE_URL REDIS_URL; do
+            for k in SESSION_SECRET GROQ_API_KEY DATABASE_URL REDIS_URL; do
               if [ -z "$(printenv "$k")" ]; then echo "MISSING:$k"; else echo "OK:$k"; fi
             done
           ' || true
