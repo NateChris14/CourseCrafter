@@ -63,6 +63,12 @@ jobs:
     name: Deploy to EC2
     needs: build-and-push-ecr-image
     runs-on: self-hosted
+    env:
+      AWS_ECR_LOGIN_URI: ${{ secrets.AWS_ECR_LOGIN_URI }}
+      ECR_REPOSITORY_NAME: ${{ secrets.ECR_REPOSITORY_NAME }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,13 +85,13 @@ jobs:
       
       - name: Debug ECR configuration
         run: |
-          echo "ECR Login URI: ${{ secrets.AWS_ECR_LOGIN_URI }}"
-          echo "ECR Repository: ${{ secrets.ECR_REPOSITORY_NAME }}"
-          echo "Full image reference: ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest"
+          echo "ECR Login URI: $AWS_ECR_LOGIN_URI"
+          echo "ECR Repository: $ECR_REPOSITORY_NAME"
+          echo "Full image reference: $AWS_ECR_LOGIN_URI/$ECR_REPOSITORY_NAME:latest"
           
       - name: Pull latest images
         run: |
-          docker pull ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+          docker pull $AWS_ECR_LOGIN_URI/$ECR_REPOSITORY_NAME:latest
           
       - name: Stop existing services
         run: |
@@ -94,7 +100,7 @@ jobs:
       - name: Update docker-compose.yml with ECR image
         run: |
           # Replace build directives with ECR image for both web and worker services
-          sed -i "s|build: \.|image: ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest|g" docker-compose.yml
+          sed -i "s|build: \.|image: $AWS_ECR_LOGIN_URI/$ECR_REPOSITORY_NAME:latest|g" docker-compose.yml
           # Verify the changes
           cat docker-compose.yml | grep -A 5 -B 5 "image:"
           
