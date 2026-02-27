@@ -15,12 +15,6 @@
         {% endif %}
       </div>
     </div>
-    <a href="/courses/{{ course.id }}/edit" class="btn btn-secondary">
-      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-      </svg>
-      Edit Course
-    </a>
   </div>
 </div>
 
@@ -180,7 +174,7 @@
         <h5 class="text-secondary" style="font-size: 0.9rem; margin-bottom: 12px;">📸 Suggested Images</h5>
         <div class="flex gap-3" style="flex-wrap: wrap;">
           {% for img in m.media_suggestions.images %}
-          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;" onclick="searchImages('{{ img.search_keywords | urlencode }}', '{{ img.description }}'); return false;">
+          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary image-search-btn" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}" data-description="{{ img.description | replace(\"'\", \"\\'\") }}">
             <div class="card image-card" style="width: 100%; border: 1px solid var(--border);">
               <div class="image-preview" style="height: 140px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}">
                 <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">🔄</div>
@@ -220,7 +214,7 @@
             </div>
           </div>
           {% else %}
-          <a href="https://www.youtube.com/results?search_query={{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" target="_blank" class="btn btn-secondary" style="flex: 1; min-width: 300px; max-width: 450px; padding: 0; overflow: hidden;" onclick="searchYouTube('{{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}', '{{ video.title }}'); return false;">
+          <a href="https://www.youtube.com/results?search_query={{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" target="_blank" class="btn btn-secondary video-search-btn" style="flex: 1; min-width: 300px; max-width: 450px; padding: 0; overflow: hidden;" data-keywords="{{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}" data-title="{{ video.title }}">
             <div class="card" style="width: 100%; border: 1px solid var(--border);">
               <div class="video-preview" style="height: 160px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 4rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;" data-keywords="{{ (video.search_keywords if video.search_keywords else video.title) | replace('http://', '') | replace('https://', '') | replace('www.', '') | replace('.com', '') | replace('.org', '') | replace('.net', '') | replace('/', ' ') | replace('.', ' ') | urlencode }}">
                 <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">🔄</div>
@@ -313,6 +307,28 @@ document.addEventListener('DOMContentLoaded', function() {
         this.style.transform = 'scale(1)';
       });
     }
+  });
+
+  // Add click handlers for image search buttons
+  const imageSearchBtns = document.querySelectorAll('.image-search-btn');
+  imageSearchBtns.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const keywords = this.dataset.keywords;
+      const description = this.dataset.description;
+      searchImages(keywords, description);
+    });
+  });
+
+  // Add click handlers for video search buttons
+  const videoSearchBtns = document.querySelectorAll('.video-search-btn');
+  videoSearchBtns.forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const keywords = this.dataset.keywords;
+      const title = this.dataset.title;
+      searchYouTube(keywords, title);
+    });
   });
 });
 </script>

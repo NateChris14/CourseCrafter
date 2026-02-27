@@ -1,12 +1,23 @@
 import httpx
 from app.settings import settings
 from app.agents.llm.base import LLMClient
+from app.logger import GLOBAL_LOGGER as logger
+
+# Import LangSmith for tracing
+try:
+    from langsmith import traceable
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
+    logger.warning("[OllamaOpenAIClient] LangSmith not available - tracing disabled")
 
 class OllamaOpenAIClient(LLMClient):
     def __init__(self, base_url: str, model: str):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        logger.info(f"[OllamaOpenAIClient] Initialized with model: {model}")
 
+    @traceable if (LANGSMITH_AVAILABLE and settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY) else lambda func: func
     def generate_text(self, * , system: str, user: str, temperature: float = 0.2) -> str:
         # Ollama OpenAI-compatible endpoint
         # POST {base_url}/chat/completions with OpenAI message format

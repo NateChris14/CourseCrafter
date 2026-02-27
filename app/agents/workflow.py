@@ -4,6 +4,15 @@ from pydantic import ValidationError
 from app.agents.schemas import RoadmapOutline
 from app.agents.llm.client import get_llm_client
 from app.settings import settings
+from app.logger import GLOBAL_LOGGER as logger
+
+# Import LangSmith for tracing
+try:
+    from langsmith import traceable
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
+    logger.warning("[workflow] LangSmith not available - tracing disabled")
 
 
 SYSTEM_PLANNER = """You are a curriculum planner.
@@ -95,6 +104,16 @@ def _validate_outline(outline: RoadmapOutline, duration_weeks: int) -> None:
                 raise ValueError(f"Week {week.week} has empty outcome")
 
 
+# Apply LangSmith tracing if available and enabled
+def _trace_workflow(func):
+    if (LANGSMITH_AVAILABLE and 
+        settings.LANGSMITH_TRACING and 
+        settings.LANGSMITH_API_KEY):
+        return traceable(func)
+    return func
+
+
+@_trace_workflow
 def generate_roadmap_outline(field: str, level: str, weekly_hours: int, duration_weeks: int) -> RoadmapOutline:
     """Generate a roadmap outline using LLM with retry logic.
     

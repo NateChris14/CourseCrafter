@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     GROQ_MODEL: str = "llama-3.1-8b-instant"
 
+    # LangSmith tracing configuration
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_API_KEY: str | None = None
+    LANGSMITH_ENDPOINT: str | None = None
+    LANGSMITH_PROJECT: str = "CourseGenerate"
+
     @property
     def langgraph_postgres_dsn(self) -> str:
         # PostgresSaver wants a DB-API style DSN like postgresql://..., not SQLAlchemy's postgresql+psycopg://...
