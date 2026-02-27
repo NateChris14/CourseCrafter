@@ -3,14 +3,6 @@ from app.logger import GLOBAL_LOGGER as logger
 from app.exceptions.custom_exception import DocumentPortalException
 from app.settings import settings
 
-# Import LangSmith for tracing
-try:
-    from langsmith import traceable
-    LANGSMITH_AVAILABLE = True
-except ImportError:
-    LANGSMITH_AVAILABLE = False
-    logger.warning("[module_writer] LangSmith not available - tracing disabled")
-
 SYSTEM_MODULE_WRITER = """You are an expert course author.
 Write clear, structured Markdown only.
 No JSON. No code fences unless showing actual code examples.
@@ -140,15 +132,6 @@ def validate_module_markdown(md: str) -> None:
     if len(numbered_items) != 3:
         raise ValueError(f"Practice exercises must have exactly 3 numbered items, found {len(numbered_items)}")
 
-# Apply LangSmith tracing if available and enabled
-def _trace_module_writer(func):
-    if (LANGSMITH_AVAILABLE and 
-        settings.LANGSMITH_TRACING and 
-        settings.LANGSMITH_API_KEY):
-        return traceable(func)
-    return func
-
-@_trace_module_writer
 def write_module_markdown(field: str, level: str, week: int, title: str,
 outcomes: list[str]) -> str:
     """Generate markdown content for a course module using LLM.
