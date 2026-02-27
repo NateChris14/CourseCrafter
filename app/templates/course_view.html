@@ -174,7 +174,7 @@
         <h5 class="text-secondary" style="font-size: 0.9rem; margin-bottom: 12px;">📸 Suggested Images</h5>
         <div class="flex gap-3" style="flex-wrap: wrap;">
           {% for img in m.media_suggestions.images %}
-          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary image-search-btn" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}" data-description="{{ img.description | replace(\"'\", \"\\'\") }}">
+          <a href="https://www.google.com/search?q={{ img.search_keywords | urlencode }}&tbm=isch" target="_blank" class="btn btn-secondary image-search-btn" style="flex: 1; min-width: 200px; max-width: 280px; padding: 0; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}" data-description="{{ img.description }}">
             <div class="card image-card" style="width: 100%; border: 1px solid var(--border);">
               <div class="image-preview" style="height: 140px; background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%); display: flex; align-items: center; justify-content: center; font-size: 3rem; border-bottom: 1px solid var(--border); position: relative; overflow: hidden;" data-keywords="{{ img.search_keywords | urlencode }}">
                 <div class="loading-spinner" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">🔄</div>
